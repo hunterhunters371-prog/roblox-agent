@@ -1,0 +1,16 @@
+{
+  "version": "0.1",
+  "description": "Servicios raíz que un path puede usar como primer segmento. Todo lo demás se rechaza con ROOT_NOT_ALLOWED.",
+  "roots": [
+    "Workspace",
+    "ReplicatedStorage",
+    "ServerStorage",
+    "ServerScriptService",
+    "StarterGui",
+    "StarterPack",
+    "StarterPlayer",
+    "Lighting",
+    "SoundService",
+    "Teams"
+  ]
+}

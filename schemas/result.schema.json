@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RBX Bridge Result",
+  "description": "Resultado de la ejecución de un comando (completed/ o failed/). También define el checkpoint de processing/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "status", "started_at", "finished_at", "progress", "results", "errors"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^cmd_[0-9]{6}$" },
+    "status": { "enum": ["completed", "failed"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["done", "total"],
+      "properties": {
+        "done": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["ok", "failed", "skipped"] },
+          "action": { "enum": ["created", "updated", "skipped", "failed"] },
+          "detail": { "type": "string" },
+          "data": true
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "op_id": { "type": "string" },
+          "code": {
+            "enum": [
+              "VALIDATION_FAILED",
+              "UNSUPPORTED_VERSION",
+              "ROOT_NOT_ALLOWED",
+              "CLASS_NOT_ALLOWED",
+              "PATH_NOT_FOUND",
+              "PATH_EXISTS",
+              "PROPERTY_NOT_WRITABLE",
+              "OP_LIMIT_EXCEEDED",
+              "ABORTED_BY_USER",
+              "OP_FAILED"
+            ]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "waypoint": { "type": "string" }
+  },
+  "$defs": {
+    "state": {
+      "title": "Checkpoint de processing/",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "last_completed", "done", "total", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^cmd_[0-9]{6}$" },
+        "status": { "const": "processing" },
+        "last_completed": { "type": "string" },
+        "done": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 1 },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs locales
+logs/*.log
+
+# Rojo
+.rojo/
+
+# Secretos — NUNCA commitear tokens ni credenciales
+*.token
+secrets.json
