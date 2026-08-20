@@ -1,0 +1,123 @@
+{
+  "version": "0.1",
+  "id": "cmd_000003",
+  "title": "Decoración de arena + dummies",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-20T22:02:00Z",
+  "request": "Decorar más la arena, añadir más detalle y agregar dummies como gente.",
+  "options": {
+    "atomic": false,
+    "dry_run": false,
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    { "op": "ensure_instance", "id": "op_01", "path": "Workspace.Arena", "class": "Model" },
+    { "op": "ensure_instance", "id": "op_02", "path": "Workspace.Arena.Decor", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_03", "path": "Workspace.Arena.Dummies", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_04", "path": "Workspace.Arena.Torches", "class": "Folder" },
+    {
+      "op": "build_from_spec",
+      "id": "op_05",
+      "parts": [
+        { "class": "Part", "name": "WallN", "parent": "Workspace.Arena.Decor", "size": [120, 3, 2], "position": [0, 5.5, -59], "properties": { "Material": "Concrete", "Color": [70, 72, 82] } },
+        { "class": "Part", "name": "WallS", "parent": "Workspace.Arena.Decor", "size": [120, 3, 2], "position": [0, 5.5, 59], "properties": { "Material": "Concrete", "Color": [70, 72, 82] } },
+        { "class": "Part", "name": "WallE", "parent": "Workspace.Arena.Decor", "size": [2, 3, 120], "position": [59, 5.5, 0], "properties": { "Material": "Concrete", "Color": [70, 72, 82] } },
+        { "class": "Part", "name": "WallW", "parent": "Workspace.Arena.Decor", "size": [2, 3, 120], "position": [-59, 5.5, 0], "properties": { "Material": "Concrete", "Color": [70, 72, 82] } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_06",
+      "parts": [
+        { "class": "Part", "name": "Crate1", "parent": "Workspace.Arena.Decor", "size": [4, 4, 4], "position": [30, 6, 20], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } },
+        { "class": "Part", "name": "Crate2", "parent": "Workspace.Arena.Decor", "size": [4, 4, 4], "position": [33.5, 6, 18.5], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } },
+        { "class": "Part", "name": "Crate3", "parent": "Workspace.Arena.Decor", "size": [4, 4, 4], "position": [31, 10, 19], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } },
+        { "class": "Part", "name": "Crate4", "parent": "Workspace.Arena.Decor", "size": [6, 4, 4], "position": [-28, 6, -22], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } },
+        { "class": "Part", "name": "Crate5", "parent": "Workspace.Arena.Decor", "size": [4, 4, 4], "position": [-25, 6, 26], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } },
+        { "class": "Part", "name": "Crate6", "parent": "Workspace.Arena.Decor", "size": [8, 3, 4], "position": [0, 5.5, -35], "properties": { "Material": "WoodPlanks", "Color": [146, 120, 90] } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_07",
+      "parts": [
+        { "class": "Part", "name": "BannerNE", "parent": "Workspace.Arena.Decor", "size": [0.5, 8, 5], "position": [52.3, 18, 48], "properties": { "Material": "Fabric", "Color": [170, 40, 40] } },
+        { "class": "Part", "name": "BannerNO", "parent": "Workspace.Arena.Decor", "size": [0.5, 8, 5], "position": [-52.3, 18, 48], "properties": { "Material": "Fabric", "Color": [170, 40, 40] } },
+        { "class": "Part", "name": "BannerSE", "parent": "Workspace.Arena.Decor", "size": [0.5, 8, 5], "position": [52.3, 18, -48], "properties": { "Material": "Fabric", "Color": [170, 40, 40] } },
+        { "class": "Part", "name": "BannerSO", "parent": "Workspace.Arena.Decor", "size": [0.5, 8, 5], "position": [-52.3, 18, -48], "properties": { "Material": "Fabric", "Color": [170, 40, 40] } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_08",
+      "parts": [
+        { "class": "Part", "name": "GatePillarL", "parent": "Workspace.Arena.Decor", "size": [2, 10, 2], "position": [-8, 9, -56], "properties": { "Material": "Cobblestone", "Color": [90, 90, 100] } },
+        { "class": "Part", "name": "GatePillarR", "parent": "Workspace.Arena.Decor", "size": [2, 10, 2], "position": [8, 9, -56], "properties": { "Material": "Cobblestone", "Color": [90, 90, 100] } },
+        { "class": "Part", "name": "GateBanner", "parent": "Workspace.Arena.Decor", "size": [14, 3, 0.5], "position": [0, 12.5, -56], "properties": { "Material": "Fabric", "Color": [170, 40, 40] } }
+      ]
+    },
+    { "op": "ensure_instance", "id": "op_09", "path": "Workspace.Arena.Torches.TorchNE", "class": "Part", "properties": { "Size": [0.6, 3, 0.6], "Position": [48, 31.5, 48], "Material": "Wood", "Color": [100, 70, 40], "Anchored": true } },
+    { "op": "ensure_instance", "id": "op_10", "path": "Workspace.Arena.Torches.TorchNE.Flame", "class": "Fire", "properties": { "Size": 3, "Heat": 5, "Color": [255, 140, 40], "SecondaryColor": [255, 60, 0] } },
+    { "op": "ensure_instance", "id": "op_11", "path": "Workspace.Arena.Torches.TorchNE.Light", "class": "PointLight", "properties": { "Color": [255, 150, 60], "Range": 20, "Brightness": 2 } },
+    { "op": "ensure_instance", "id": "op_12", "path": "Workspace.Arena.Torches.TorchNO", "class": "Part", "properties": { "Size": [0.6, 3, 0.6], "Position": [-48, 31.5, 48], "Material": "Wood", "Color": [100, 70, 40], "Anchored": true } },
+    { "op": "ensure_instance", "id": "op_13", "path": "Workspace.Arena.Torches.TorchNO.Flame", "class": "Fire", "properties": { "Size": 3, "Heat": 5, "Color": [255, 140, 40], "SecondaryColor": [255, 60, 0] } },
+    { "op": "ensure_instance", "id": "op_14", "path": "Workspace.Arena.Torches.TorchNO.Light", "class": "PointLight", "properties": { "Color": [255, 150, 60], "Range": 20, "Brightness": 2 } },
+    { "op": "ensure_instance", "id": "op_15", "path": "Workspace.Arena.Torches.TorchSE", "class": "Part", "properties": { "Size": [0.6, 3, 0.6], "Position": [48, 31.5, -48], "Material": "Wood", "Color": [100, 70, 40], "Anchored": true } },
+    { "op": "ensure_instance", "id": "op_16", "path": "Workspace.Arena.Torches.TorchSE.Flame", "class": "Fire", "properties": { "Size": 3, "Heat": 5, "Color": [255, 140, 40], "SecondaryColor": [255, 60, 0] } },
+    { "op": "ensure_instance", "id": "op_17", "path": "Workspace.Arena.Torches.TorchSE.Light", "class": "PointLight", "properties": { "Color": [255, 150, 60], "Range": 20, "Brightness": 2 } },
+    { "op": "ensure_instance", "id": "op_18", "path": "Workspace.Arena.Torches.TorchSO", "class": "Part", "properties": { "Size": [0.6, 3, 0.6], "Position": [-48, 31.5, -48], "Material": "Wood", "Color": [100, 70, 40], "Anchored": true } },
+    { "op": "ensure_instance", "id": "op_19", "path": "Workspace.Arena.Torches.TorchSO.Flame", "class": "Fire", "properties": { "Size": 3, "Heat": 5, "Color": [255, 140, 40], "SecondaryColor": [255, 60, 0] } },
+    { "op": "ensure_instance", "id": "op_20", "path": "Workspace.Arena.Torches.TorchSO.Light", "class": "PointLight", "properties": { "Color": [255, 150, 60], "Range": 20, "Brightness": 2 } },
+    {
+      "op": "build_from_spec",
+      "id": "op_21",
+      "parts": [
+        { "class": "Part", "name": "Dummy1_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [15.5, 5, 16], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy1_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [16.5, 5, 16], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy1_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [16, 7, 16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy1_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [14.5, 7, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy1_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [17.5, 7, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy1_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [16, 8.6, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } },
+        { "class": "Part", "name": "Dummy2_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-16.5, 5, 16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy2_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-15.5, 5, 16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy2_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [-16, 7, 16], "properties": { "Color": [196, 40, 41], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy2_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-17.5, 7, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy2_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-14.5, 7, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy2_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [-16, 8.6, 16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } },
+        { "class": "Part", "name": "Dummy3_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [15.5, 5, -16], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy3_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [16.5, 5, -16], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy3_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [16, 7, -16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy3_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [14.5, 7, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy3_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [17.5, 7, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy3_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [16, 8.6, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } },
+        { "class": "Part", "name": "Dummy4_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-16.5, 5, -16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy4_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-15.5, 5, -16], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy4_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [-16, 7, -16], "properties": { "Color": [196, 40, 41], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy4_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-17.5, 7, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy4_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-14.5, 7, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy4_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [-16, 8.6, -16], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } },
+        { "class": "Part", "name": "Dummy5_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [33.5, 5, 0], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy5_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [34.5, 5, 0], "properties": { "Color": [164, 189, 71], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy5_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [34, 7, 0], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy5_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [32.5, 7, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy5_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [35.5, 7, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy5_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [34, 8.6, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } },
+        { "class": "Part", "name": "Dummy6_LeftLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-34.5, 5, 0], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy6_RightLeg", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-33.5, 5, 0], "properties": { "Color": [13, 105, 172], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy6_Torso", "parent": "Workspace.Arena.Dummies", "size": [2, 2, 1], "position": [-34, 7, 0], "properties": { "Color": [196, 40, 41], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy6_LeftArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-35.5, 7, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy6_RightArm", "parent": "Workspace.Arena.Dummies", "size": [1, 2, 1], "position": [-32.5, 7, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Dummy6_Head", "parent": "Workspace.Arena.Dummies", "size": [1.2, 1.2, 1.2], "position": [-34, 8.6, 0], "properties": { "Color": [245, 205, 48], "Material": "SmoothPlastic", "Shape": "Ball" } }
+      ]
+    },
+    { "op": "group_instances", "id": "op_22", "paths": ["Workspace.Arena.Dummies.Dummy1_LeftLeg", "Workspace.Arena.Dummies.Dummy1_RightLeg", "Workspace.Arena.Dummies.Dummy1_Torso", "Workspace.Arena.Dummies.Dummy1_LeftArm", "Workspace.Arena.Dummies.Dummy1_RightArm", "Workspace.Arena.Dummies.Dummy1_Head"], "model_name": "Dummy1", "parent": "Workspace.Arena.Dummies" },
+    { "op": "group_instances", "id": "op_23", "paths": ["Workspace.Arena.Dummies.Dummy2_LeftLeg", "Workspace.Arena.Dummies.Dummy2_RightLeg", "Workspace.Arena.Dummies.Dummy2_Torso", "Workspace.Arena.Dummies.Dummy2_LeftArm", "Workspace.Arena.Dummies.Dummy2_RightArm", "Workspace.Arena.Dummies.Dummy2_Head"], "model_name": "Dummy2", "parent": "Workspace.Arena.Dummies" },
+    { "op": "group_instances", "id": "op_24", "paths": ["Workspace.Arena.Dummies.Dummy3_LeftLeg", "Workspace.Arena.Dummies.Dummy3_RightLeg", "Workspace.Arena.Dummies.Dummy3_Torso", "Workspace.Arena.Dummies.Dummy3_LeftArm", "Workspace.Arena.Dummies.Dummy3_RightArm", "Workspace.Arena.Dummies.Dummy3_Head"], "model_name": "Dummy3", "parent": "Workspace.Arena.Dummies" },
+    { "op": "group_instances", "id": "op_25", "paths": ["Workspace.Arena.Dummies.Dummy4_LeftLeg", "Workspace.Arena.Dummies.Dummy4_RightLeg", "Workspace.Arena.Dummies.Dummy4_Torso", "Workspace.Arena.Dummies.Dummy4_LeftArm", "Workspace.Arena.Dummies.Dummy4_RightArm", "Workspace.Arena.Dummies.Dummy4_Head"], "model_name": "Dummy4", "parent": "Workspace.Arena.Dummies" },
+    { "op": "group_instances", "id": "op_26", "paths": ["Workspace.Arena.Dummies.Dummy5_LeftLeg", "Workspace.Arena.Dummies.Dummy5_RightLeg", "Workspace.Arena.Dummies.Dummy5_Torso", "Workspace.Arena.Dummies.Dummy5_LeftArm", "Workspace.Arena.Dummies.Dummy5_RightArm", "Workspace.Arena.Dummies.Dummy5_Head"], "model_name": "Dummy5", "parent": "Workspace.Arena.Dummies" },
+    { "op": "group_instances", "id": "op_27", "paths": ["Workspace.Arena.Dummies.Dummy6_LeftLeg", "Workspace.Arena.Dummies.Dummy6_RightLeg", "Workspace.Arena.Dummies.Dummy6_Torso", "Workspace.Arena.Dummies.Dummy6_LeftArm", "Workspace.Arena.Dummies.Dummy6_RightArm", "Workspace.Arena.Dummies.Dummy6_Head"], "model_name": "Dummy6", "parent": "Workspace.Arena.Dummies" },
+    { "op": "ensure_instance", "id": "op_28", "path": "Lighting.Atmosphere", "class": "Atmosphere", "properties": { "Density": 0.35, "Offset": 0.25, "Haze": 1.5, "Color": [200, 200, 210], "Decay": [180, 180, 190] } },
+    { "op": "inspect_tree", "id": "op_29", "path": "Workspace.Arena", "max_depth": 3 }
+  ]
+}
