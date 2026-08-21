@@ -3,9 +3,10 @@
 -- v1.1: botón "Selección" — sube a snapshots/ un informe de lo seleccionado con el mouse.
 -- v1.2: highlight del objeto bajo el cursor + inspección de GUI, scripts contenidos,
 --        etiqueta _RBX_Bridge y flag play_mode.
--- v1.3: los scripts suben SIEMPRE con su código completo (sin importar la profundidad);
---        árboles de GUI sin límite práctico (ScreenGui/BillboardGui/SurfaceGui/ImageLabel
---        con imagen); mesh_id/primary_part/shape; el log confirma cuántos scripts subieron.
+-- v1.3: los scripts suben SIEMPRE con su código completo; árboles de GUI sin límite
+--        práctico (ScreenGui/BillboardGui/SurfaceGui/ImageLabel con imagen);
+--        mesh_id/primary_part/shape; el log confirma cuántos scripts subieron.
+-- v1.3.1: profundidad base 3 (alcanza scripts dentro de modelos, p. ej. NPC's → Sell).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -302,7 +303,7 @@ local contadorScripts = 0
 -- Describe una instancia: identidad, atributos, geometría (BasePart/Model), GUI completa
 -- (v1.3), scripts contenidos y etiqueta del bridge (v1.2), fuente completa si es script.
 -- Reglas de profundidad (v1.3): los scripts suben SIEMPRE completos; los árboles de GUI
--- recorren hasta 6 niveles; el resto del mundo, 2 (para no inflar el informe).
+-- recorren hasta 6 niveles; el resto del mundo según la profundidad recibida.
 local function describir(instance, profundidad)
 	local data = {
 		name = instance.Name,
@@ -432,7 +433,7 @@ local function doInspeccionarSeleccion()
 	contadorScripts = 0
 	local items = {}
 	for _, inst in ipairs(seleccion) do
-		table.insert(items, describir(inst, 2))
+		table.insert(items, describir(inst, 3)) -- v1.3.1: profundidad base 3 (alcanza scripts dentro de modelos)
 	end
 	ui:SetStatus("subiendo selección…", "busy")
 	local ok, err = pcall(function()
