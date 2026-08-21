@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.7** — **💬 Chat con el agente**: nueva pestaña CHAT junto a COMANDOS. Escribes tu mensaje (Enter o botón Enviar) → sube a `chat/inbox/`; el plugin revisa `chat/outbox/` cada 20 s y muestra las respuestas del agente en burbujas. Flujo honesto: el agente no está activo 24/7 — escribe tu mensaje y avísale en Notion («lee el chat»); él responde y te aparece en el panel solo. Incluye además lo de la v1.6: **barra de progreso** durante la ejecución de comandos, **registro con colores** (✓ verde / ERROR rojo), efecto de presión en los botones y la fila del cursor con la **clase** del objeto.
+
 **v1.5** — interfaz rediseñada: paleta oscura refinada, botones con efecto hover, filas de comandos con **franja de color según su estado** (ámbar = pendiente, azul = auto, verde = aprobado, violeta = procesando), secciones etiquetadas (Comandos / Registro), log más amplio y chip de versión en la cabecera.
 
 **v1.4** — botón **⬆ Código**: sube **todos los scripts del juego de una vez**, un archivo por servicio (`snapshots/codigo_ServerScriptService_<ts>.json`, `codigo_ReplicatedStorage_...`, `StarterPlayer`, `StarterGui`, `StarterPack`, `Workspace` — incluye los scripts que viven dentro de modelos del mapa). El log confirma por servicio cuántos scripts subieron.
@@ -46,6 +48,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
 7. **🔍 Selección** — con algo seleccionado (mouse, Explorer, o multi-selección con Ctrl/Shift), sube su informe a `snapshots/seleccion_<timestamp>.json`; el log confirma con `✓ Subida: … — N instancia(s), M script(s)`. El highlight del cursor es del mundo 3D; la GUI 2D se elige en el Explorer.
 8. **⬆ Código** (v1.4) — sube TODOS los scripts del juego en un click, un archivo por servicio en `snapshots/codigo_<Servicio>_<timestamp>.json`. Ideal para análisis completo del place sin ir carpeta por carpeta.
+9. **💬 Chat** (v1.7) — pestaña CHAT: escribe al agente (Enter o Enviar). Tu mensaje sube a `chat/inbox/`; las respuestas del agente aparecen solas (sondeo cada 20 s desde `chat/outbox/`). Como el agente no está siempre activo, avísale en Notion («lee el chat») para que responda.
 
 ## Qué NO hace (por diseño)
 

@@ -9,6 +9,9 @@
 -- v1.3.1: profundidad base 3 (alcanza scripts dentro de modelos, p. ej. NPC's → Sell).
 -- v1.4: botón "⬆ Código" — sube TODOS los scripts del juego de una vez, un archivo por
 --        servicio (snapshots/codigo_<Servicio>_<ts>.json), para análisis completo.
+-- v1.6: barra de progreso durante la ejecución + clase del objeto en la fila hover.
+-- v1.7: pestaña 💬 CHAT — el usuario escribe mensajes que suben a chat/inbox/ y el
+--        plugin sondea chat/outbox/ cada 20s para mostrar las respuestas del agente.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -33,9 +36,9 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 	false, -- habilitado al inicio
 	false, -- no sobreescribir estado previo
 	440, -- ancho default
-	420, -- alto default
+	560, -- alto default (v1.7: más alto para el chat)
 	340, -- ancho mínimo
-	320 -- alto mínimo
+	480 -- alto mínimo
 )
 local widget = plugin:CreateDockWidgetPluginGui("RobloxAgentBridge", widgetInfo)
 widget.Title = "Roblox Agent Bridge"
@@ -156,10 +159,11 @@ local function finishCommand(cmd, processingPath, stateSha, startedAt, results, 
 			github:DeleteFile(statePathOf(cmd.id), stateSha, "limpiar checkpoint " .. cmd.id)
 		end)
 	end
+	ui:SetProgress(nil) -- v1.6: ocultar la barra al terminar
 	if failed then
 		ui:Log(("%s terminó con %d error(es)."):format(cmd.id, #errors))
 	else
-		ui:Log(cmd.id .. " completado.")
+		ui:Log("✓ " .. cmd.id .. " completado.")
 	end
 end
 
@@ -203,6 +207,7 @@ local function doExecute(file, cmd, resumeState)
 		else
 			results, errors, done = Executor.Run(cmd, function(doneCount, total, opId)
 				ui:SetStatus(("%s · %d/%d"):format(cmd.id, doneCount, total), "busy")
+				ui:SetProgress(doneCount, total) -- v1.6: barra de progreso
 				stateSha = github:WriteJson(statePathOf(cmd.id), {
 					id = cmd.id,
 					status = "processing",
@@ -218,6 +223,7 @@ local function doExecute(file, cmd, resumeState)
 	end)
 
 	if not ok then
+		ui:SetProgress(nil)
 		reportError("ejecutar " .. cmd.id, err)
 	end
 	doSync()
@@ -523,6 +529,66 @@ local function doSubirCodigo()
 	setStatusReady()
 end
 
+-- ---------- chat con el agente (v1.7) ----------
+-- Canal: chat/inbox/ (mensajes del usuario) ↔ chat/outbox/ (respuestas del agente).
+-- El agente no está siempre activo: escribe aquí y avísale en Notion («lee el chat»);
+-- él lee inbox/, deja su respuesta en outbox/ y el plugin la muestra solo (sondeo 20s).
+
+local CHAT_IN = "chat/inbox"
+local CHAT_OUT = "chat/outbox"
+local chatVistos = {}
+local chatPrimeraPasada = true
+
+local function doEnviarChat(texto)
+	texto = texto:gsub("^%s*(.-)%s*$", "%1")
+	if texto == "" then
+		return
+	end
+	if not guardGithub() then
+		return
+	end
+	ui:AddChatBubble("usuario", texto)
+	local ok, err = pcall(function()
+		github:WriteJson(CHAT_IN .. "/msg_" .. os.date("!%Y%m%d_%H%M%S") .. ".json", {
+			autor = "usuario",
+			texto = texto,
+			enviado_at = nowIso(),
+		}, "chat: mensaje del usuario")
+	end)
+	if ok then
+		ui:Log("✓ Mensaje enviado al agente (avísale en Notion: «lee el chat»).")
+	else
+		reportError("enviar mensaje de chat", err)
+	end
+end
+
+local function revisarChat()
+	if not github then
+		return
+	end
+	local ok, archivos = pcall(function()
+		return github:ListFiles(CHAT_OUT)
+	end)
+	if not ok or type(archivos) ~= "table" then
+		return
+	end
+	for _, archivo in ipairs(archivos) do
+		if archivo.name:match("^resp_%d%d%d%d%d%d%d%d_%d%d%d%d%d%d%.json$") and not chatVistos[archivo.name] then
+			chatVistos[archivo.name] = true
+			if not chatPrimeraPasada then
+				local ok2, resp = pcall(function()
+					return github:ReadJson(archivo.path)
+				end)
+				if ok2 and resp and resp.texto then
+					ui:AddChatBubble("agente", resp.texto)
+					ui:Log("💬 Respuesta del agente recibida en el chat.")
+				end
+			end
+		end
+	end
+	chatPrimeraPasada = false
+end
+
 -- ---------- highlight al pasar el cursor (v1.2) ----------
 
 local hoverHighlight = nil
@@ -552,7 +618,7 @@ local function iniciarHover()
 				-- adorneamos el modelo contenedor si existe (más legible que la part suelta)
 				local adorno = target:FindFirstAncestorOfClass("Model") or target
 				obtenerHighlight().Adornee = adorno
-				ui:SetHover(adorno:GetFullName())
+				ui:SetHover(adorno:GetFullName(), adorno.ClassName) -- v1.6: clase + path
 			else
 				if hoverHighlight then
 					hoverHighlight.Adornee = nil
@@ -668,6 +734,7 @@ ui = UI.new(widget, {
 	onSaveToken = onSaveToken,
 	onInspectSelection = doInspeccionarSeleccion,
 	onUploadCode = doSubirCodigo,
+	onSendChat = doEnviarChat,
 })
 
 -- highlight del cursor: activo solo mientras el panel esté abierto (v1.2)
@@ -679,6 +746,16 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	end
 end)
 plugin.Unloading:Connect(detenerHover)
+
+-- sondeo de respuestas del agente: cada 20s mientras el panel esté abierto (v1.7)
+task.spawn(function()
+	while true do
+		if widget.Enabled then
+			pcall(revisarChat)
+		end
+		task.wait(20)
+	end
+end)
 
 local savedToken = plugin:GetSetting("github_token")
 if type(savedToken) == "string" and #savedToken > 0 then

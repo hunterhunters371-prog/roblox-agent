@@ -1,14 +1,16 @@
--- UI del dock widget: estado, lista de comandos, acciones y log.
+-- UI del dock widget: estado, lista de comandos, acciones, chat y log.
 -- v1.1: botón "🔍 Selección" (inspeccionar lo seleccionado con el mouse).
 -- v1.2: fila "hover" que muestra el path del objeto bajo el cursor.
 -- v1.4: botón "⬆ Código" (subir todos los scripts del juego, un archivo por servicio).
--- v1.5: rediseño visual — paleta oscura refinada, botones con hover, filas con franja
---        de color por estado, secciones etiquetadas, log más amplio, chip de versión.
+-- v1.5: rediseño visual — paleta oscura, hover en botones, franja de estado, secciones.
+-- v1.6: barra de progreso (SetProgress), log con colores (✓/ERROR), presión en botones.
+-- v1.7: pestañas COMANDOS / 💬 CHAT — burbujas de conversación con el agente
+--        (el usuario escribe aquí; el agente responde vía GitHub: chat/inbox ↔ chat/outbox).
 
 local UI = {}
 UI.__index = UI
 
-local VERSION = "v1.5"
+local VERSION = "v1.7"
 
 -- paleta (oscura, tipo Notion)
 local COLOR_BG = Color3.fromRGB(25, 25, 25)
@@ -25,6 +27,8 @@ local COLOR_HOVER = Color3.fromRGB(41, 196, 226) -- cian
 local COLOR_CODE = Color3.fromRGB(144, 101, 196) -- violeta
 local COLOR_LOG_BG = Color3.fromRGB(20, 20, 20)
 local COLOR_LOG_TEXT = Color3.fromRGB(168, 215, 168)
+local COLOR_BUBBLE_ME = Color3.fromRGB(43, 78, 120) -- mis mensajes
+local COLOR_BUBBLE_ME_TEXT = Color3.fromRGB(150, 190, 235)
 
 local STATE_COLORS = {
 	pending = COLOR_WARN,
@@ -32,6 +36,10 @@ local STATE_COLORS = {
 	approved = COLOR_OK,
 	processing = COLOR_CODE,
 }
+
+local function escaparRich(texto)
+	return (texto:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+end
 
 local function makeLabel(parent, text, size)
 	local label = Instance.new("TextLabel")
@@ -60,7 +68,7 @@ local function bordered(instance)
 	stroke.Parent = instance
 end
 
--- Botón con efecto hover (aclara el color base al pasar el mouse).
+-- Botón con efecto hover (aclara) y presión (oscurece al mantener pulsado).
 local function makeButton(parent, text, color)
 	local button = Instance.new("TextButton")
 	button.BackgroundColor3 = color
@@ -78,7 +86,28 @@ local function makeButton(parent, text, color)
 	button.MouseLeave:Connect(function()
 		button.BackgroundColor3 = color
 	end)
+	button.MouseButton1Down:Connect(function()
+		button.BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.2)
+	end)
+	button.MouseButton1Up:Connect(function()
+		button.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.16)
+	end)
 	return button
+end
+
+-- Pestaña (sin efecto hover: su color lo controla SetTab).
+local function makeTab(parent, text)
+	local tab = Instance.new("TextButton")
+	tab.BackgroundColor3 = COLOR_NEUTRAL
+	tab.TextColor3 = Color3.new(1, 1, 1)
+	tab.Font = Enum.Font.GothamBold
+	tab.TextSize = 11
+	tab.Text = text
+	tab.AutoButtonColor = false
+	tab.BorderSizePixel = 0
+	tab.Parent = parent
+	rounded(tab, 6)
+	return tab
 end
 
 local function sectionLabel(parent, text, order)
@@ -90,7 +119,7 @@ local function sectionLabel(parent, text, order)
 	return label
 end
 
--- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode }
+-- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode, onSendChat }
 function UI.new(widget, handlers)
 	local self = setmetatable({}, UI)
 
@@ -112,14 +141,14 @@ function UI.new(widget, handlers)
 	layout.Padding = UDim.new(0, 6)
 	layout.Parent = root
 
-	-- cabecera: título + chip de versión
+	-- cabecera: icono + título + chip de versión
 	local header = Instance.new("Frame")
 	header.BackgroundTransparency = 1
 	header.Size = UDim2.new(1, 0, 0, 22)
 	header.LayoutOrder = 1
 	header.Parent = root
 
-	local title = makeLabel(header, "ROBLOX AGENT BRIDGE", 14)
+	local title = makeLabel(header, "🔌 ROBLOX AGENT BRIDGE", 14)
 	title.Font = Enum.Font.GothamBold
 	title.Size = UDim2.new(1, -60, 1, 0)
 
@@ -151,11 +180,30 @@ function UI.new(widget, handlers)
 	self._status.Size = UDim2.fromScale(1, 1)
 	self._status.TextColor3 = COLOR_WARN
 
+	-- barra de progreso (v1.6): visible solo mientras un comando se ejecuta
+	local progressTrack = Instance.new("Frame")
+	progressTrack.BackgroundColor3 = COLOR_CARD
+	progressTrack.BorderSizePixel = 0
+	progressTrack.Size = UDim2.new(1, 0, 0, 6)
+	progressTrack.LayoutOrder = 3
+	progressTrack.Visible = false
+	progressTrack.Parent = root
+	rounded(progressTrack, 3)
+
+	local progressFill = Instance.new("Frame")
+	progressFill.BackgroundColor3 = COLOR_ACCENT
+	progressFill.BorderSizePixel = 0
+	progressFill.Size = UDim2.new(0, 0, 1, 0)
+	progressFill.Parent = progressTrack
+	rounded(progressFill, 3)
+	self._progressTrack = progressTrack
+	self._progressFill = progressFill
+
 	-- fila de token
 	local tokenRow = Instance.new("Frame")
 	tokenRow.BackgroundTransparency = 1
 	tokenRow.Size = UDim2.new(1, 0, 0, 28)
-	tokenRow.LayoutOrder = 3
+	tokenRow.LayoutOrder = 4
 	tokenRow.Parent = root
 	local tokenLayout = Instance.new("UIListLayout")
 	tokenLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -195,8 +243,8 @@ function UI.new(widget, handlers)
 	-- acciones principales (3 columnas)
 	local actions = Instance.new("Frame")
 	actions.BackgroundTransparency = 1
-	actions.Size = UDim2.new(1, 0, 0, 30)
-	actions.LayoutOrder = 4
+	actions.Size = UDim2.new(1, 0, 0, 32)
+	actions.LayoutOrder = 5
 	actions.Parent = root
 	local actionsLayout = Instance.new("UIListLayout")
 	actionsLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -220,14 +268,14 @@ function UI.new(widget, handlers)
 	undoButton.Size = UDim2.new(1, 0, 0, 24)
 	undoButton.TextSize = 11
 	undoButton.Font = Enum.Font.Gotham
-	undoButton.LayoutOrder = 5
+	undoButton.LayoutOrder = 6
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)
 
-	-- fila hover (v1.2): tarjeta con el path bajo el cursor
+	-- fila hover (v1.2): tarjeta con clase + path bajo el cursor
 	local hoverCard = Instance.new("Frame")
 	hoverCard.BackgroundColor3 = COLOR_PANEL
 	hoverCard.Size = UDim2.new(1, 0, 0, 24)
-	hoverCard.LayoutOrder = 6
+	hoverCard.LayoutOrder = 7
 	hoverCard.Parent = root
 	rounded(hoverCard, 6)
 	bordered(hoverCard)
@@ -239,19 +287,39 @@ function UI.new(widget, handlers)
 	self._hover.Size = UDim2.fromScale(1, 1)
 	self._hover.TextColor3 = COLOR_HOVER
 
-	-- sección: comandos
-	sectionLabel(root, "COMANDOS", 7)
+	-- pestañas (v1.7): COMANDOS / CHAT
+	local tabs = Instance.new("Frame")
+	tabs.BackgroundTransparency = 1
+	tabs.Size = UDim2.new(1, 0, 0, 26)
+	tabs.LayoutOrder = 8
+	tabs.Parent = root
+	local tabsLayout = Instance.new("UIListLayout")
+	tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabsLayout.Padding = UDim.new(0, 6)
+	tabsLayout.Parent = tabs
 
+	self._tabComandos = makeTab(tabs, "COMANDOS")
+	self._tabComandos.Size = UDim2.new(0.5, -3, 1, 0)
+	self._tabChat = makeTab(tabs, "💬 CHAT CON EL AGENTE")
+	self._tabChat.Size = UDim2.new(0.5, -3, 1, 0)
+
+	-- contenedor de contenido (lista de comandos O chat)
+	local content = Instance.new("Frame")
+	content.BackgroundTransparency = 1
+	content.Size = UDim2.new(1, 0, 1, -440)
+	content.LayoutOrder = 9
+	content.Parent = root
+
+	-- · pestaña comandos: la lista de siempre
 	local list = Instance.new("ScrollingFrame")
 	list.BackgroundColor3 = COLOR_PANEL
 	list.BorderSizePixel = 0
-	list.Size = UDim2.new(1, 0, 1, -322)
+	list.Size = UDim2.fromScale(1, 1)
 	list.CanvasSize = UDim2.new(0, 0, 0, 0)
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	list.ScrollBarThickness = 3
 	list.ScrollBarImageColor3 = COLOR_NEUTRAL
-	list.LayoutOrder = 8
-	list.Parent = root
+	list.Parent = content
 	rounded(list, 6)
 	bordered(list)
 	local listLayout = Instance.new("UIListLayout")
@@ -265,8 +333,99 @@ function UI.new(widget, handlers)
 	listPad.Parent = list
 	self._list = list
 
+	-- · pestaña chat (v1.7): burbujas + caja de texto
+	local chatFrame = Instance.new("Frame")
+	chatFrame.BackgroundTransparency = 1
+	chatFrame.Size = UDim2.fromScale(1, 1)
+	chatFrame.Visible = false
+	chatFrame.Parent = content
+	local chatLayout = Instance.new("UIListLayout")
+	chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	chatLayout.Padding = UDim.new(0, 6)
+	chatLayout.Parent = chatFrame
+
+	local chatScroll = Instance.new("ScrollingFrame")
+	chatScroll.BackgroundColor3 = COLOR_PANEL
+	chatScroll.BorderSizePixel = 0
+	chatScroll.Size = UDim2.new(1, 0, 1, -34)
+	chatScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	chatScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	chatScroll.ScrollBarThickness = 3
+	chatScroll.ScrollBarImageColor3 = COLOR_NEUTRAL
+	chatScroll.LayoutOrder = 1
+	chatScroll.Parent = chatFrame
+	rounded(chatScroll, 6)
+	bordered(chatScroll)
+	local bubblesLayout = Instance.new("UIListLayout")
+	bubblesLayout.Padding = UDim.new(0, 6)
+	bubblesLayout.Parent = chatScroll
+	local bubblesPad = Instance.new("UIPadding")
+	bubblesPad.PaddingTop = UDim.new(0, 8)
+	bubblesPad.PaddingBottom = UDim.new(0, 8)
+	bubblesPad.PaddingLeft = UDim.new(0, 8)
+	bubblesPad.PaddingRight = UDim.new(0, 8)
+	bubblesPad.Parent = chatScroll
+	self._chatScroll = chatScroll
+
+	local chatInputRow = Instance.new("Frame")
+	chatInputRow.BackgroundTransparency = 1
+	chatInputRow.Size = UDim2.new(1, 0, 0, 28)
+	chatInputRow.LayoutOrder = 2
+	chatInputRow.Parent = chatFrame
+	local chatInputLayout = Instance.new("UIListLayout")
+	chatInputLayout.FillDirection = Enum.FillDirection.Horizontal
+	chatInputLayout.Padding = UDim.new(0, 6)
+	chatInputLayout.Parent = chatInputRow
+
+	local chatInput = Instance.new("TextBox")
+	chatInput.PlaceholderText = "Escríbeme qué mejorar o qué hacer…"
+	chatInput.PlaceholderColor3 = COLOR_MUTED
+	chatInput.Text = ""
+	chatInput.Size = UDim2.new(1, -76, 1, 0)
+	chatInput.BackgroundColor3 = COLOR_PANEL
+	chatInput.TextColor3 = COLOR_TEXT
+	chatInput.Font = Enum.Font.Gotham
+	chatInput.TextSize = 12
+	chatInput.ClearTextOnFocus = false
+	chatInput.TextXAlignment = Enum.TextXAlignment.Left
+	chatInput.BorderSizePixel = 0
+	chatInput.Parent = chatInputRow
+	rounded(chatInput, 6)
+	bordered(chatInput)
+	local chatInputPad = Instance.new("UIPadding")
+	chatInputPad.PaddingLeft = UDim.new(0, 8)
+	chatInputPad.Parent = chatInput
+	self._chatInput = chatInput
+
+	local sendButton = makeButton(chatInputRow, "Enviar", COLOR_ACCENT)
+	sendButton.Size = UDim2.new(0, 70, 1, 0)
+
+	local function enviar()
+		local texto = chatInput.Text
+		if texto:gsub("%s", "") ~= "" then
+			chatInput.Text = ""
+			handlers.onSendChat(texto)
+		end
+	end
+	sendButton.MouseButton1Click:Connect(enviar)
+	chatInput.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			enviar()
+		end
+	end)
+
+	self._chatFrame = chatFrame
+
+	self._tabComandos.MouseButton1Click:Connect(function()
+		self:SetTab("comandos")
+	end)
+	self._tabChat.MouseButton1Click:Connect(function()
+		self:SetTab("chat")
+	end)
+	self:SetTab("comandos")
+
 	-- sección: registro
-	sectionLabel(root, "REGISTRO", 9)
+	sectionLabel(root, "REGISTRO", 10)
 
 	local log = Instance.new("TextBox")
 	log.BackgroundColor3 = COLOR_LOG_BG
@@ -278,10 +437,11 @@ function UI.new(widget, handlers)
 	log.MultiLine = true
 	log.ClearTextOnFocus = false
 	log.TextEditable = false
+	log.RichText = true -- v1.6: líneas coloreadas (✓ / ERROR)
 	log.Text = ""
 	log.BorderSizePixel = 0
 	log.Size = UDim2.new(1, 0, 0, 128)
-	log.LayoutOrder = 10
+	log.LayoutOrder = 11
 	log.Parent = root
 	rounded(log, 6)
 	bordered(log)
@@ -306,14 +466,38 @@ function UI:SetStatus(text, kind)
 	end
 end
 
+-- v1.6: barra de progreso de la ejecución. Sin argumentos (o done>=total) = ocultar.
+function UI:SetProgress(done, total)
+	if not done or not total or total <= 0 or done >= total then
+		self._progressTrack.Visible = false
+		self._progressFill.Size = UDim2.new(0, 0, 1, 0)
+		return
+	end
+	self._progressTrack.Visible = true
+	self._progressFill.Size = UDim2.new(done / total, 0, 1, 0)
+end
+
 function UI:ShowTokenRow(visible)
 	self._tokenRow.Visible = visible
 end
 
--- v1.2: actualiza la fila hover con el path bajo el cursor (nil = sin objetivo).
-function UI:SetHover(path)
+-- v1.7: cambia entre la lista de comandos y el chat.
+function UI:SetTab(nombre)
+	local esComandos = nombre == "comandos"
+	self._list.Visible = esComandos
+	self._chatFrame.Visible = not esComandos
+	self._tabComandos.BackgroundColor3 = esComandos and COLOR_ACCENT or COLOR_NEUTRAL
+	self._tabChat.BackgroundColor3 = esComandos and COLOR_NEUTRAL or COLOR_ACCENT
+end
+
+-- v1.2/v1.6: path (+ clase) del objeto bajo el cursor (nil = sin objetivo).
+function UI:SetHover(path, className)
 	if path then
-		self._hover.Text = "🖱 " .. path
+		if className then
+			self._hover.Text = ("🖱 %s — %s"):format(className, path)
+		else
+			self._hover.Text = "🖱 " .. path
+		end
 	else
 		self._hover.Text = "🖱 (pasa el cursor sobre el mundo)"
 	end
@@ -321,8 +505,73 @@ end
 
 function UI:Log(message)
 	local timestamp = DateTime.now():FormatLocalTime("HH:mm:ss", "es-co")
-	self._log.Text ..= ("\n[%s] %s"):format(timestamp, message)
+	local linea = ("[%s] %s"):format(timestamp, escaparRich(message))
+	if message:sub(1, 5) == "ERROR" then
+		linea = ('<font color="rgb(224,108,117)">%s</font>'):format(linea) -- v1.6: errores en rojo
+	elseif message:sub(1, 1) == "✓" then
+		linea = ('<font color="rgb(120,220,140)">%s</font>'):format(linea) -- v1.6: éxitos en verde
+	end
+	self._log.Text ..= "\n" .. linea
 	self._log.CursorPosition = #self._log.Text + 1
+end
+
+-- v1.7: burbuja de chat. autor: "usuario" (derecha, azul) | "agente" (izquierda, gris).
+function UI:AddChatBubble(autor, texto)
+	local esMio = autor == "usuario"
+
+	-- contenedor de ancho completo para poder "alinear" la burbuja
+	local fila = Instance.new("Frame")
+	fila.BackgroundTransparency = 1
+	fila.Size = UDim2.new(1, 0, 0, 0)
+	fila.AutomaticSize = Enum.AutomaticSize.Y
+	fila.Parent = self._chatScroll
+
+	local burbuja = Instance.new("Frame")
+	burbuja.BackgroundColor3 = esMio and COLOR_BUBBLE_ME or COLOR_CARD
+	burbuja.BorderSizePixel = 0
+	burbuja.Size = UDim2.new(0.85, 0, 0, 0)
+	burbuja.Position = UDim2.new(esMio and 0.15 or 0, 0, 0, 0)
+	burbuja.AutomaticSize = Enum.AutomaticSize.Y
+	burbuja.Parent = fila
+	rounded(burbuja, 8)
+	bordered(burbuja)
+
+	local burbujaLayout = Instance.new("UIListLayout")
+	burbujaLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	burbujaLayout.Padding = UDim.new(0, 2)
+	burbujaLayout.Parent = burbuja
+	local burbujaPad = Instance.new("UIPadding")
+	burbujaPad.PaddingTop = UDim.new(0, 6)
+	burbujaPad.PaddingBottom = UDim.new(0, 8)
+	burbujaPad.PaddingLeft = UDim.new(0, 10)
+	burbujaPad.PaddingRight = UDim.new(0, 10)
+	burbujaPad.Parent = burbuja
+
+	local autorLabel = makeLabel(burbuja, esMio and "Tú" or "🤖 Agente", 10)
+	autorLabel.TextColor3 = esMio and COLOR_BUBBLE_ME_TEXT or COLOR_MUTED
+	autorLabel.Font = Enum.Font.GothamBold
+	autorLabel.Size = UDim2.new(1, 0, 0, 12)
+	autorLabel.LayoutOrder = 1
+
+	local textoLabel = Instance.new("TextLabel")
+	textoLabel.BackgroundTransparency = 1
+	textoLabel.TextColor3 = COLOR_TEXT
+	textoLabel.Font = Enum.Font.Gotham
+	textoLabel.TextSize = 12
+	textoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	textoLabel.TextWrapped = true
+	textoLabel.RichText = true
+	textoLabel.Text = escaparRich(texto)
+	textoLabel.Size = UDim2.new(1, 0, 0, 0)
+	textoLabel.AutomaticSize = Enum.AutomaticSize.Y
+	textoLabel.LayoutOrder = 2
+	textoLabel.Parent = burbuja
+
+	-- bajar el scroll al final (tras dejar que se recalculen los tamaños)
+	task.defer(function()
+		self._chatScroll.CanvasPosition = Vector2.new(0, self._chatScroll.AbsoluteCanvasSize.Y)
+	end)
 end
 
 -- items: { { id, title, state, progress?, actionLabel?, onAction? } }
@@ -333,7 +582,7 @@ function UI:SetCommands(items)
 		end
 	end
 	if #items == 0 then
-		local empty = makeLabel(self._list, "Sin comandos activos. Pulsa ⟳ Sync.", 11)
+		local empty = makeLabel(self._list, "📭 Sin comandos activos — pulsa ⟳ Sync", 11)
 		empty.Size = UDim2.new(1, 0, 0, 20)
 		empty.TextColor3 = COLOR_MUTED
 		empty.TextXAlignment = Enum.TextXAlignment.Center
