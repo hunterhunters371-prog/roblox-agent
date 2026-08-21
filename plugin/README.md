@@ -2,11 +2,13 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
-**v1.3** — los **scripts suben siempre con su código completo**, sin importar la profundidad (selecciona una carpeta entera como ServerScriptService y llegan todos); **GUI completas** (árboles a profundidad completa, `ScreenGui`/`BillboardGui`/`SurfaceGui` con sus propiedades, `ImageLabel` con su imagen); `mesh_id`/`primary_part`/`shape` en el mundo 3D; y el log confirma cada subida con el número de instancias y scripts.
+**v1.4** — botón **⬆ Código**: sube **todos los scripts del juego de una vez**, un archivo por servicio (`snapshots/codigo_ServerScriptService_<ts>.json`, `codigo_ReplicatedStorage_...`, `StarterPlayer`, `StarterGui`, `StarterPack`, `Workspace` — incluye los scripts que viven dentro de modelos del mapa). El log confirma por servicio cuántos scripts subieron.
+
+**v1.3** — los **scripts suben siempre con su código completo**, sin importar la profundidad (selecciona una carpeta entera como ServerScriptService y llegan todos); **GUI completas** (árboles a profundidad completa, `ScreenGui`/`BillboardGui`/`SurfaceGui` con sus propiedades, `ImageLabel` con su imagen); `mesh_id`/`primary_part`/`shape` en el mundo 3D; y el log confirma cada subida con el número de instancias y scripts. *(v1.3.1: profundidad base 3 — alcanza scripts dentro de modelos.)*
 
 **v1.2** — mientras el panel está abierto, el objeto bajo el cursor se rodea de un **contorno cian brillante** y su path aparece en el panel (sabes qué vas a subir antes de pulsar Selección). La inspección reconoce **GUI** (UDim2 legible, texto, colores, fuente, z-index), **modelos con lógica** (`scripts_inside`), lo **creado por el agente** (atributo `_RBX_Bridge` con el id del comando) y marca si la captura fue en modo Play (`play_mode`).
 
-**v1.1** — botón **🔍 Selección**: inspecciona lo que tengas seleccionado con el mouse (o en el Explorer) y sube un informe detallado a `snapshots/` del repo (path, clase, atributos, tamaño/posición/material, hijos hasta 2 niveles y, si es un script, su código fuente completo con conteo de líneas).
+**v1.1** — botón **🔍 Selección**: inspecciona lo que tengas seleccionado con el mouse (o en el Explorer) y sube un informe detallado a `snapshots/` del repo (path, clase, atributos, tamaño/posición/material, hijos y, si es un script, su código fuente completo con conteo de líneas).
 
 ## Requisitos
 
@@ -40,7 +42,8 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
-7. **🔍 Selección** — con algo seleccionado (mouse, Explorer, o multi-selección con Ctrl/Shift), sube su informe a `snapshots/seleccion_<timestamp>.json`; el log confirma con `✓ Subida: … — N instancia(s), M script(s)`. Para subir código: selecciona la carpeta del servicio (p. ej. ServerScriptService) — todos los scripts dentro llegan completos. Para GUI: selecciona el ScreenGui en el Explorer. El highlight del cursor es del mundo 3D; la GUI 2D se elige en el Explorer.
+7. **🔍 Selección** — con algo seleccionado (mouse, Explorer, o multi-selección con Ctrl/Shift), sube su informe a `snapshots/seleccion_<timestamp>.json`; el log confirma con `✓ Subida: … — N instancia(s), M script(s)`. El highlight del cursor es del mundo 3D; la GUI 2D se elige en el Explorer.
+8. **⬆ Código** (v1.4) — sube TODOS los scripts del juego en un click, un archivo por servicio en `snapshots/codigo_<Servicio>_<timestamp>.json`. Ideal para análisis completo del place sin ir carpeta por carpeta.
 
 ## Qué NO hace (por diseño)
 

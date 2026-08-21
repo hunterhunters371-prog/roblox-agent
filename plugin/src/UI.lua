@@ -1,6 +1,7 @@
 -- UI del dock widget: estado, lista de comandos, acciones y log.
 -- v1.1: botón "🔍 Selección" (inspeccionar lo seleccionado con el mouse).
 -- v1.2: fila "hover" que muestra el path del objeto bajo el cursor.
+-- v1.4: botón "⬆ Código" (subir todos los scripts del juego, un archivo por servicio).
 
 local UI = {}
 UI.__index = UI
@@ -15,6 +16,7 @@ local COLOR_OK = Color3.fromRGB(80, 200, 120)
 local COLOR_WARN = Color3.fromRGB(255, 180, 60)
 local COLOR_NEUTRAL = Color3.fromRGB(90, 90, 90)
 local COLOR_HOVER = Color3.fromRGB(0, 220, 255)
+local COLOR_CODE = Color3.fromRGB(120, 90, 200)
 
 local function makeLabel(parent, text, size)
 	local label = Instance.new("TextLabel")
@@ -50,7 +52,7 @@ local function rounded(instance)
 	corner.Parent = instance
 end
 
--- handlers: { onSync, onUndo, onSaveToken, onInspectSelection }
+-- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode }
 function UI.new(widget, handlers)
 	local self = setmetatable({}, UI)
 
@@ -132,17 +134,22 @@ function UI.new(widget, handlers)
 	actionsLayout.Parent = actions
 
 	local syncButton = makeButton(actions, "Sync")
-	syncButton.Size = UDim2.new(0.333, -4, 1, 0)
+	syncButton.Size = UDim2.new(0.25, -5, 1, 0)
 	syncButton.MouseButton1Click:Connect(handlers.onSync)
 
 	local inspectButton = makeButton(actions, "🔍 Selección")
 	inspectButton.BackgroundColor3 = Color3.fromRGB(70, 130, 90)
-	inspectButton.Size = UDim2.new(0.333, -4, 1, 0)
+	inspectButton.Size = UDim2.new(0.25, -5, 1, 0)
 	inspectButton.MouseButton1Click:Connect(handlers.onInspectSelection)
+
+	local codeButton = makeButton(actions, "⬆ Código")
+	codeButton.BackgroundColor3 = COLOR_CODE
+	codeButton.Size = UDim2.new(0.25, -5, 1, 0)
+	codeButton.MouseButton1Click:Connect(handlers.onUploadCode)
 
 	local undoButton = makeButton(actions, "Deshacer")
 	undoButton.BackgroundColor3 = COLOR_NEUTRAL
-	undoButton.Size = UDim2.new(0.334, -4, 1, 0)
+	undoButton.Size = UDim2.new(0.25, -5, 1, 0)
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)
 
 	-- fila hover (v1.2): qué objeto está bajo el cursor ahora mismo

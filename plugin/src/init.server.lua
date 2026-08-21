@@ -7,6 +7,8 @@
 --        práctico (ScreenGui/BillboardGui/SurfaceGui/ImageLabel con imagen);
 --        mesh_id/primary_part/shape; el log confirma cuántos scripts subieron.
 -- v1.3.1: profundidad base 3 (alcanza scripts dentro de modelos, p. ej. NPC's → Sell).
+-- v1.4: botón "⬆ Código" — sube TODOS los scripts del juego de una vez, un archivo por
+--        servicio (snapshots/codigo_<Servicio>_<ts>.json), para análisis completo.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -460,6 +462,67 @@ local function doInspeccionarSeleccion()
 	setStatusReady()
 end
 
+-- ---------- subir todo el código del juego (v1.4) ----------
+
+local SERVICIOS_CODIGO = {
+	"ServerScriptService",
+	"ReplicatedStorage",
+	"StarterPlayer",
+	"StarterGui",
+	"StarterPack",
+	"Workspace",
+}
+
+-- Recorre los servicios habituales y sube todos los scripts encontrados, un archivo por
+-- servicio: snapshots/codigo_<Servicio>_<timestamp>.json (para análisis completo del juego).
+local function doSubirCodigo()
+	if not guardGithub() then
+		return
+	end
+	ui:SetStatus("recopilando código…", "busy")
+	local totalScripts, subidas, fallos = 0, 0, 0
+	for _, nombreServicio in ipairs(SERVICIOS_CODIGO) do
+		local okServicio, servicio = pcall(function()
+			return game:GetService(nombreServicio)
+		end)
+		if okServicio and servicio then
+			local items = {}
+			for _, d in ipairs(servicio:GetDescendants()) do
+				if esScript(d) then
+					table.insert(items, describir(d, 1))
+				end
+			end
+			if #items > 0 then
+				totalScripts += #items
+				local ok, err = pcall(function()
+					local nombre = ("codigo_%s_%s.json"):format(nombreServicio, os.date("!%Y%m%d_%H%M%S"))
+					github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+						tipo = "codigo",
+						servicio = nombreServicio,
+						capturado_at = nowIso(),
+						play_mode = RunService:IsRunning(),
+						scripts = #items,
+						items = items,
+					}, ("snapshot: código de %s (%d scripts)"):format(nombreServicio, #items))
+				end)
+				if ok then
+					subidas += 1
+					ui:Log(("✓ Código de %s: %d script(s)"):format(nombreServicio, #items))
+				else
+					fallos += 1
+					reportError("subir código de " .. nombreServicio, err)
+				end
+			end
+		end
+	end
+	if totalScripts == 0 then
+		ui:Log("No encontré scripts en los servicios habituales de este place.")
+	elseif fallos == 0 then
+		ui:Log(("✓ Todo el código subido: %d script(s) en %d archivo(s)"):format(totalScripts, subidas))
+	end
+	setStatusReady()
+end
+
 -- ---------- highlight al pasar el cursor (v1.2) ----------
 
 local hoverHighlight = nil
@@ -604,6 +667,7 @@ ui = UI.new(widget, {
 	onUndo = doUndo,
 	onSaveToken = onSaveToken,
 	onInspectSelection = doInspeccionarSeleccion,
+	onUploadCode = doSubirCodigo,
 })
 
 -- highlight del cursor: activo solo mientras el panel esté abierto (v1.2)
