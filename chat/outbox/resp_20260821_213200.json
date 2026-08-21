@@ -1,0 +1,5 @@
+{
+  "autor": "agente",
+  "texto": "El cmd_000013 (Mercado Propio) ya se ejecutó con éxito — mira tu mapa hacia el este. El cmd_000014 fue rechazado porque tu plugin instalado aún no conocía la clase ProximityPrompt; te dejé la corrección como cmd_000015 (el Tendero ahora crea su propio prompt al arrancar, no necesitas reinstalar nada). Pulsa Sync y Ejecutar en cmd_000015, entra en Play y acércate al Tendero: E para comprar semillas.",
+  "enviado_at": "2026-08-21T21:32:00Z"
+}
