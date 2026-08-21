@@ -1,5 +1,6 @@
 -- Ejecutor de comandos: aplica operaciones en orden, reporta progreso
 -- y gestiona waypoints de Undo/Redo (ChangeHistoryService).
+-- v1.2: pasa el id del comando a los handlers (para la etiqueta _RBX_Bridge).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -54,7 +55,8 @@ function Executor.Run(command, onProgress, startIndex)
 			table.insert(results, { id = op.id or ("op_" .. index), status = "failed", action = "failed", detail = "op desconocido: " .. tostring(op.op) })
 			table.insert(errors, { op_id = op.id, code = "VALIDATION_FAILED", message = "op desconocido" })
 		else
-			local ok, action, detail, data = pcall(handler, op)
+			-- v1.2: el handler recibe también el id del comando (etiqueta de autoría)
+			local ok, action, detail, data = pcall(handler, op, command.id)
 			if ok then
 				local entry = { id = op.id, status = "ok" }
 				if action then

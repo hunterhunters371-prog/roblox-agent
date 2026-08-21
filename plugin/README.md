@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.2** — mientras el panel está abierto, el objeto bajo el cursor se rodea de un **contorno cian brillante** y su path aparece en el panel (sabes qué vas a subir antes de pulsar Selección). La inspección ahora también reconoce **GUI** (UDim2 legible, texto, colores, fuente, z-index), **modelos con lógica** (`scripts_inside`: lista los scripts contenidos), lo **creado por el agente** (atributo `_RBX_Bridge` con el id del comando) y marca si la captura fue en modo Play (`play_mode`).
+
 **v1.1** — botón **🔍 Selección**: inspecciona lo que tengas seleccionado con el mouse (o en el Explorer) y sube un informe detallado a `snapshots/` del repo (path, clase, atributos, tamaño/posición/material, hijos hasta 2 niveles y, si es un script, su código fuente completo con conteo de líneas).
 
 ## Requisitos
@@ -36,7 +38,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
-7. **🔍 Selección** (v1.1) — con algo seleccionado en el editor, sube su informe a `snapshots/seleccion_<timestamp>.json` para que el agente lo lea desde GitHub.
+7. **🔍 Selección** — con algo seleccionado en el editor, sube su informe a `snapshots/seleccion_<timestamp>.json` para que el agente lo lea desde GitHub. Con la v1.2, al pasar el cursor por el mundo el objeto se ilumina con un contorno cian y su path aparece en la fila 🖱 del panel (el highlight es del mundo 3D; para GUI 2D selecciona en el Explorer y pulsa Selección).
 
 ## Qué NO hace (por diseño)
 
@@ -46,3 +48,4 @@ Publicar el juego, ejecutar código arbitrario (`loadstring`), HTTP a dominios n
 
 - Los checkpoints se escriben en GitHub tras cada operación (un commit por operación). En v0.2 se evaluará batching con la Git Trees API.
 - Un comando que termina con errores va a `failed/`; la reanudación desde `failed/` no está soportada en el MVP (vuelve a enviarlo como comando nuevo).
+- Desde la v1.2, todo lo que el plugin crea queda etiquetado con el atributo `_RBX_Bridge` (id del comando) — útil para distinguirlo de lo que ya estaba en el juego.

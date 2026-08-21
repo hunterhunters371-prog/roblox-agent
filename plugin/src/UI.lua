@@ -1,5 +1,6 @@
 -- UI del dock widget: estado, lista de comandos, acciones y log.
 -- v1.1: botón "🔍 Selección" (inspeccionar lo seleccionado con el mouse).
+-- v1.2: fila "hover" que muestra el path del objeto bajo el cursor.
 
 local UI = {}
 UI.__index = UI
@@ -13,6 +14,7 @@ local COLOR_ACCENT = Color3.fromRGB(0, 162, 255)
 local COLOR_OK = Color3.fromRGB(80, 200, 120)
 local COLOR_WARN = Color3.fromRGB(255, 180, 60)
 local COLOR_NEUTRAL = Color3.fromRGB(90, 90, 90)
+local COLOR_HOVER = Color3.fromRGB(0, 220, 255)
 
 local function makeLabel(parent, text, size)
 	local label = Instance.new("TextLabel")
@@ -143,15 +145,21 @@ function UI.new(widget, handlers)
 	undoButton.Size = UDim2.new(0.334, -4, 1, 0)
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)
 
+	-- fila hover (v1.2): qué objeto está bajo el cursor ahora mismo
+	self._hover = makeLabel(root, "🖱 (pasa el cursor sobre el mundo)", 11)
+	self._hover.Size = UDim2.new(1, 0, 0, 18)
+	self._hover.TextColor3 = COLOR_HOVER
+	self._hover.LayoutOrder = 5
+
 	-- lista de comandos
 	local list = Instance.new("ScrollingFrame")
 	list.BackgroundColor3 = COLOR_PANEL
 	list.BorderSizePixel = 0
-	list.Size = UDim2.new(1, 0, 1, -244)
+	list.Size = UDim2.new(1, 0, 1, -262)
 	list.CanvasSize = UDim2.new(0, 0, 0, 0)
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	list.ScrollBarThickness = 4
-	list.LayoutOrder = 5
+	list.LayoutOrder = 6
 	list.Parent = root
 	rounded(list)
 	local listLayout = Instance.new("UIListLayout")
@@ -178,7 +186,7 @@ function UI.new(widget, handlers)
 	log.TextEditable = false
 	log.Text = ""
 	log.Size = UDim2.new(1, 0, 0, 110)
-	log.LayoutOrder = 6
+	log.LayoutOrder = 7
 	log.Parent = root
 	rounded(log)
 	self._log = log
@@ -199,6 +207,15 @@ end
 
 function UI:ShowTokenRow(visible)
 	self._tokenRow.Visible = visible
+end
+
+-- v1.2: actualiza la fila hover con el path bajo el cursor (nil = sin objetivo).
+function UI:SetHover(path)
+	if path then
+		self._hover.Text = "🖱 " .. path
+	else
+		self._hover.Text = "🖱 (pasa el cursor sobre el mundo)"
+	end
 end
 
 function UI:Log(message)

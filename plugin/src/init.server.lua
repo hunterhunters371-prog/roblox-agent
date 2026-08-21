@@ -1,10 +1,15 @@
 -- Roblox Agent Bridge — punto de entrada del plugin (protocolo v0.1).
 -- Flujo: Sync → validar → aprobar → ejecutar → reportar. Todo el estado vive en GitHub.
 -- v1.1: botón "Selección" — sube a snapshots/ un informe de lo seleccionado con el mouse.
+-- v1.2: highlight del objeto bajo el cursor (contorno cian + path en el panel) e
+--        inspección ampliada: GUI (UDim2, texto, colores), scripts contenidos,
+--        etiqueta _RBX_Bridge (creado por el agente) y flag play_mode.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 
 local Config = require(script.Config)
 local GitHub = require(script.GitHub)
@@ -234,11 +239,31 @@ end
 
 -- ---------- inspección de selección (v1.1) ----------
 
--- JSONEncode no acepta tipos de Roblox (Vector3, Color3…): los convertimos a texto.
+local function colorATabla(color)
+	return {
+		math.floor(color.R * 255 + 0.5),
+		math.floor(color.G * 255 + 0.5),
+		math.floor(color.B * 255 + 0.5),
+	}
+end
+
+-- JSONEncode no acepta tipos de Roblox (Vector3, Color3…): los convertimos a texto/tablas.
 local function valorJson(v)
 	local t = typeof(v)
 	if t == "string" or t == "number" or t == "boolean" then
 		return v
+	end
+	if t == "UDim2" then
+		return { scaleX = v.X.Scale, offsetX = v.X.Offset, scaleY = v.Y.Scale, offsetY = v.Y.Offset }
+	end
+	if t == "UDim" then
+		return { scale = v.Scale, offset = v.Offset }
+	end
+	if t == "Vector3" then
+		return { v.X, v.Y, v.Z }
+	end
+	if t == "Color3" then
+		return colorATabla(v)
 	end
 	if t == "table" then
 		local limpio = {}
@@ -250,15 +275,20 @@ local function valorJson(v)
 	return tostring(v)
 end
 
-local function colorATabla(color)
-	return {
-		math.floor(color.R * 255 + 0.5),
-		math.floor(color.G * 255 + 0.5),
-		math.floor(color.B * 255 + 0.5),
-	}
+-- Scripts contenidos dentro de la instancia (v1.2): para reconocer modelos
+-- que traen lógica propia o fueron hechos por script.
+local function scriptsDentro(instance)
+	local lista = {}
+	for _, d in ipairs(instance:GetDescendants()) do
+		if d:IsA("Script") or d:IsA("ModuleScript") or d:IsA("LocalScript") then
+			table.insert(lista, d.ClassName .. ":" .. d.Name)
+		end
+	end
+	return lista
 end
 
 -- Describe una instancia: identidad, atributos, geometría (BasePart/Model),
+-- GUI (v1.2), scripts contenidos (v1.2), etiqueta del bridge (v1.2),
 -- fuente completa si es script, e hijos (recursivo hasta 2 niveles).
 local function describir(instance, profundidad)
 	local data = {
@@ -269,6 +299,14 @@ local function describir(instance, profundidad)
 	local attrs = instance:GetAttributes()
 	if next(attrs) ~= nil then
 		data.attributes = valorJson(attrs)
+	end
+	local bridgeTag = instance:GetAttribute("_RBX_Bridge")
+	if bridgeTag ~= nil then
+		data.bridge = bridgeTag -- lo creó el agente en ese comando (v1.2)
+	end
+	local dentro = scriptsDentro(instance)
+	if #dentro > 0 then
+		data.scripts_inside = dentro -- contiene lógica (v1.2)
 	end
 	if instance:IsA("BasePart") then
 		data.size = { instance.Size.X, instance.Size.Y, instance.Size.Z }
@@ -284,6 +322,25 @@ local function describir(instance, profundidad)
 		if okPivot then
 			data.pivot = { pivot.Position.X, pivot.Position.Y, pivot.Position.Z }
 		end
+	end
+	if instance:IsA("GuiObject") then
+		local g = {
+			visible = instance.Visible,
+			size = valorJson(instance.Size),
+			position = valorJson(instance.Position),
+			anchor_point = valorJson(instance.AnchorPoint),
+			background_color = colorATabla(instance.BackgroundColor3),
+			background_transparency = instance.BackgroundTransparency,
+			z_index = instance.ZIndex,
+			layout_order = instance.LayoutOrder,
+		}
+		if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+			g.text = instance.Text
+			g.text_size = instance.TextSize
+			g.font = instance.Font.Name
+			g.text_color = colorATabla(instance.TextColor3)
+		end
+		data.gui = g
 	end
 	if instance:IsA("Script") or instance:IsA("ModuleScript") or instance:IsA("LocalScript") then
 		data.source_lines = 1 + select(2, instance.Source:gsub("\n", "\n"))
@@ -322,6 +379,7 @@ local function doInspeccionarSeleccion()
 		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
 			tipo = "seleccion",
 			capturado_at = nowIso(),
+			play_mode = RunService:IsRunning(), -- true si capturaste durante Play (v1.2)
 			total = #items,
 			items = items,
 		}, "snapshot: selección (" .. #items .. " instancia(s))")
@@ -331,6 +389,57 @@ local function doInspeccionarSeleccion()
 		reportError("inspeccionar selección", err)
 	end
 	setStatusReady()
+end
+
+-- ---------- highlight al pasar el cursor (v1.2) ----------
+
+local hoverHighlight = nil
+local hoverConnection = nil
+local ultimoHover = nil
+
+local function obtenerHighlight()
+	if not hoverHighlight then
+		hoverHighlight = Instance.new("Highlight")
+		hoverHighlight.Name = "_RBX_HoverHighlight"
+		hoverHighlight.FillTransparency = 1
+		hoverHighlight.OutlineColor = Color3.fromRGB(0, 220, 255)
+		hoverHighlight.OutlineTransparency = 0
+		hoverHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		hoverHighlight.Parent = CoreGui
+	end
+	return hoverHighlight
+end
+
+local function iniciarHover()
+	local mouse = plugin:GetMouse()
+	hoverConnection = RunService.Heartbeat:Connect(function()
+		local target = mouse.Target
+		if target ~= ultimoHover then
+			ultimoHover = target
+			if target then
+				-- adorneamos el modelo contenedor si existe (más legible que la part suelta)
+				local adorno = target:FindFirstAncestorOfClass("Model") or target
+				obtenerHighlight().Adornee = adorno
+				ui:SetHover(adorno:GetFullName())
+			else
+				if hoverHighlight then
+					hoverHighlight.Adornee = nil
+				end
+				ui:SetHover(nil)
+			end
+		end
+	end)
+end
+
+local function detenerHover()
+	if hoverConnection then
+		hoverConnection:Disconnect()
+		hoverConnection = nil
+	end
+	if hoverHighlight then
+		hoverHighlight.Adornee = nil
+	end
+	ultimoHover = nil
 end
 
 -- ---------- sync ----------
@@ -427,6 +536,16 @@ ui = UI.new(widget, {
 	onSaveToken = onSaveToken,
 	onInspectSelection = doInspeccionarSeleccion,
 })
+
+-- highlight del cursor: activo solo mientras el panel esté abierto (v1.2)
+widget:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if widget.Enabled then
+		iniciarHover()
+	else
+		detenerHover()
+	end
+end)
+plugin.Unloading:Connect(detenerHover)
 
 local savedToken = plugin:GetSetting("github_token")
 if type(savedToken) == "string" and #savedToken > 0 then

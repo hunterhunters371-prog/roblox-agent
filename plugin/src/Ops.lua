@@ -1,7 +1,9 @@
 -- Ejecutores de operaciones del protocolo RBX Bridge v0.1.
--- Cada handler recibe la operación y devuelve:
+-- Cada handler recibe la operación (y opcionalmente el id del comando, v1.2) y devuelve:
 --   (action: "created" | "updated" | "skipped" | nil, detail?, data?)
 -- En error lanza error({ code = ..., message = ... }) (o un string plano).
+-- v1.2: todo lo que el plugin CREA queda etiquetado con el atributo _RBX_Bridge = <id del
+-- comando>, así la inspección puede reconocer qué fue hecho por el agente.
 
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -15,6 +17,13 @@ local Ops = {}
 
 local function fail(code, message)
 	error({ code = code, message = message }, 0)
+end
+
+-- v1.2: marca de autoría del bridge (best-effort; algunos objetos no aceptan atributos).
+local function marcar(instance, cmdId)
+	pcall(function()
+		instance:SetAttribute("_RBX_Bridge", cmdId or "agent-bridge")
+	end)
 end
 
 local function toVector3(value)
@@ -166,7 +175,7 @@ end
 
 -- ---------- escritura ----------
 
-function Ops.ensure_instance(op)
+function Ops.ensure_instance(op, cmdId)
 	local existing = Resolver.Resolve(op.path)
 	if existing then
 		if existing.ClassName ~= op.class then
@@ -206,14 +215,15 @@ function Ops.ensure_instance(op)
 		applyProperties(instance, op.properties)
 	end
 	instance.Parent = parent
+	marcar(instance, cmdId)
 	return "created"
 end
 
-function Ops.create_instance(op)
+function Ops.create_instance(op, cmdId)
 	if Resolver.Resolve(op.path) then
 		fail("PATH_EXISTS", op.path)
 	end
-	return Ops.ensure_instance(op)
+	return Ops.ensure_instance(op, cmdId)
 end
 
 function Ops.set_property(op)
@@ -301,7 +311,7 @@ function Ops.rename_instance(op)
 	return "updated"
 end
 
-function Ops.clone_instance(op)
+function Ops.clone_instance(op, cmdId)
 	local source = mustResolve(op.path)
 	local parent = mustResolve(op.new_parent)
 	local finalName = op.new_name or source.Name
@@ -311,6 +321,7 @@ function Ops.clone_instance(op)
 	local clone = source:Clone()
 	clone.Name = finalName
 	clone.Parent = parent
+	marcar(clone, cmdId)
 	return "created"
 end
 
@@ -338,7 +349,7 @@ function Ops.set_script_source(op)
 	return "updated", nil, { source_lines = lines }
 end
 
-function Ops.group_instances(op)
+function Ops.group_instances(op, cmdId)
 	local parent = mustResolve(op.parent)
 	local model = parent:FindFirstChild(op.model_name)
 	local created = false
@@ -360,6 +371,9 @@ function Ops.group_instances(op)
 	pcall(function()
 		model.WorldPivot = model:GetBoundingBox()
 	end)
+	if created then
+		marcar(model, cmdId)
+	end
 	return created and "created" or "updated"
 end
 
@@ -471,16 +485,17 @@ STRUCTURES.tower = function(params)
 	return model
 end
 
-function Ops.build_structure(op)
+function Ops.build_structure(op, cmdId)
 	local builder = STRUCTURES[op.structure]
 	if not builder then
 		fail("OP_FAILED", "estructura no implementada en el MVP: " .. tostring(op.structure))
 	end
 	local model = builder(op.params or {})
+	marcar(model, cmdId)
 	return "created", model:GetFullName()
 end
 
-function Ops.build_from_spec(op)
+function Ops.build_from_spec(op, cmdId)
 	local created, skipped = 0, 0
 	for index, partSpec in ipairs(op.parts) do
 		if not Validator.IsClassAllowed(partSpec.class) then
@@ -507,6 +522,7 @@ function Ops.build_from_spec(op)
 				instance.Anchored = partSpec.anchored ~= false
 			end
 			instance.Parent = parent
+			marcar(instance, cmdId)
 			created += 1
 		end
 	end
