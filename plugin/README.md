@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.5** — interfaz rediseñada: paleta oscura refinada, botones con efecto hover, filas de comandos con **franja de color según su estado** (ámbar = pendiente, azul = auto, verde = aprobado, violeta = procesando), secciones etiquetadas (Comandos / Registro), log más amplio y chip de versión en la cabecera.
+
 **v1.4** — botón **⬆ Código**: sube **todos los scripts del juego de una vez**, un archivo por servicio (`snapshots/codigo_ServerScriptService_<ts>.json`, `codigo_ReplicatedStorage_...`, `StarterPlayer`, `StarterGui`, `StarterPack`, `Workspace` — incluye los scripts que viven dentro de modelos del mapa). El log confirma por servicio cuántos scripts subieron.
 
 **v1.3** — los **scripts suben siempre con su código completo**, sin importar la profundidad (selecciona una carpeta entera como ServerScriptService y llegan todos); **GUI completas** (árboles a profundidad completa, `ScreenGui`/`BillboardGui`/`SurfaceGui` con sus propiedades, `ImageLabel` con su imagen); `mesh_id`/`primary_part`/`shape` en el mundo 3D; y el log confirma cada subida con el número de instancias y scripts. *(v1.3.1: profundidad base 3 — alcanza scripts dentro de modelos.)*
