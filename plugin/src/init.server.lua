@@ -1,9 +1,11 @@
 -- Roblox Agent Bridge — punto de entrada del plugin (protocolo v0.1).
 -- Flujo: Sync → validar → aprobar → ejecutar → reportar. Todo el estado vive en GitHub.
 -- v1.1: botón "Selección" — sube a snapshots/ un informe de lo seleccionado con el mouse.
--- v1.2: highlight del objeto bajo el cursor (contorno cian + path en el panel) e
---        inspección ampliada: GUI (UDim2, texto, colores), scripts contenidos,
---        etiqueta _RBX_Bridge (creado por el agente) y flag play_mode.
+-- v1.2: highlight del objeto bajo el cursor + inspección de GUI, scripts contenidos,
+--        etiqueta _RBX_Bridge y flag play_mode.
+-- v1.3: los scripts suben SIEMPRE con su código completo (sin importar la profundidad);
+--        árboles de GUI sin límite práctico (ScreenGui/BillboardGui/SurfaceGui/ImageLabel
+--        con imagen); mesh_id/primary_part/shape; el log confirma cuántos scripts subieron.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -237,7 +239,7 @@ local function onSaveToken(token)
 	doSync()
 end
 
--- ---------- inspección de selección (v1.1) ----------
+-- ---------- inspección de selección (v1.1–v1.3) ----------
 
 local function colorATabla(color)
 	return {
@@ -275,21 +277,32 @@ local function valorJson(v)
 	return tostring(v)
 end
 
--- Scripts contenidos dentro de la instancia (v1.2): para reconocer modelos
--- que traen lógica propia o fueron hechos por script.
+local function esScript(instance)
+	return instance:IsA("Script") or instance:IsA("ModuleScript") or instance:IsA("LocalScript")
+end
+
+local function esGui(instance)
+	return instance:IsA("GuiObject") or instance:IsA("LayerCollector")
+end
+
+-- Scripts contenidos dentro de la instancia (v1.2): reconoce modelos con lógica propia.
 local function scriptsDentro(instance)
 	local lista = {}
 	for _, d in ipairs(instance:GetDescendants()) do
-		if d:IsA("Script") or d:IsA("ModuleScript") or d:IsA("LocalScript") then
+		if esScript(d) then
 			table.insert(lista, d.ClassName .. ":" .. d.Name)
 		end
 	end
 	return lista
 end
 
--- Describe una instancia: identidad, atributos, geometría (BasePart/Model),
--- GUI (v1.2), scripts contenidos (v1.2), etiqueta del bridge (v1.2),
--- fuente completa si es script, e hijos (recursivo hasta 2 niveles).
+-- contador de scripts del informe actual (v1.3: el log confirma cuántos subieron)
+local contadorScripts = 0
+
+-- Describe una instancia: identidad, atributos, geometría (BasePart/Model), GUI completa
+-- (v1.3), scripts contenidos y etiqueta del bridge (v1.2), fuente completa si es script.
+-- Reglas de profundidad (v1.3): los scripts suben SIEMPRE completos; los árboles de GUI
+-- recorren hasta 6 niveles; el resto del mundo, 2 (para no inflar el informe).
 local function describir(instance, profundidad)
 	local data = {
 		name = instance.Name,
@@ -304,16 +317,21 @@ local function describir(instance, profundidad)
 	if bridgeTag ~= nil then
 		data.bridge = bridgeTag -- lo creó el agente en ese comando (v1.2)
 	end
-	local dentro = scriptsDentro(instance)
-	if #dentro > 0 then
-		data.scripts_inside = dentro -- contiene lógica (v1.2)
-	end
 	if instance:IsA("BasePart") then
 		data.size = { instance.Size.X, instance.Size.Y, instance.Size.Z }
 		data.position = { instance.Position.X, instance.Position.Y, instance.Position.Z }
 		data.material = instance.Material.Name
 		data.color = colorATabla(instance.Color)
 		data.anchored = instance.Anchored
+		local okShape, shape = pcall(function()
+			return instance.Shape.Name
+		end)
+		if okShape then
+			data.shape = shape -- v1.3
+		end
+		if instance:IsA("MeshPart") then
+			data.mesh_id = instance.MeshId -- v1.3 (clave para replicar el aspecto)
+		end
 	end
 	if instance:IsA("Model") then
 		local okPivot, pivot = pcall(function()
@@ -322,6 +340,37 @@ local function describir(instance, profundidad)
 		if okPivot then
 			data.pivot = { pivot.Position.X, pivot.Position.Y, pivot.Position.Z }
 		end
+		if instance.PrimaryPart then
+			data.primary_part = instance.PrimaryPart.Name -- v1.3
+		end
+		local dentro = scriptsDentro(instance)
+		if #dentro > 0 then
+			data.scripts_inside = dentro -- contiene lógica (v1.2)
+		end
+	end
+	if instance:IsA("LayerCollector") then
+		-- v1.3: contenedores de GUI (ScreenGui, BillboardGui, SurfaceGui…)
+		local lc = {}
+		local okEnabled, enabled = pcall(function()
+			return instance.Enabled
+		end)
+		if okEnabled then
+			lc.enabled = enabled
+		end
+		if instance:IsA("ScreenGui") then
+			lc.display_order = instance.DisplayOrder
+			lc.reset_on_spawn = instance.ResetOnSpawn
+			lc.ignore_gui_inset = instance.IgnoreGuiInset
+			lc.screen_insets = instance.ScreenInsets.Name
+		elseif instance:IsA("BillboardGui") then
+			lc.size = valorJson(instance.Size)
+			lc.studs_offset = valorJson(instance.StudsOffset)
+			lc.always_on_top = instance.AlwaysOnTop
+		elseif instance:IsA("SurfaceGui") then
+			lc.canvas_size = valorJson(instance.CanvasSize)
+			lc.always_on_top = instance.AlwaysOnTop
+		end
+		data.layer = lc
 	end
 	if instance:IsA("GuiObject") then
 		local g = {
@@ -340,9 +389,16 @@ local function describir(instance, profundidad)
 			g.font = instance.Font.Name
 			g.text_color = colorATabla(instance.TextColor3)
 		end
+		if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
+			-- v1.3: la imagen es lo esencial para replicar una GUI
+			g.image = instance.Image
+			g.image_color = colorATabla(instance.ImageColor3)
+			g.scale_type = instance.ScaleType.Name
+		end
 		data.gui = g
 	end
-	if instance:IsA("Script") or instance:IsA("ModuleScript") or instance:IsA("LocalScript") then
+	if esScript(instance) then
+		contadorScripts += 1
 		data.source_lines = 1 + select(2, instance.Source:gsub("\n", "\n"))
 		data.source = instance.Source
 	end
@@ -350,7 +406,11 @@ local function describir(instance, profundidad)
 	if #hijos > 0 then
 		data.children = {}
 		for _, hijo in ipairs(hijos) do
-			if profundidad > 1 then
+			if esScript(hijo) then
+				table.insert(data.children, describir(hijo, 2)) -- scripts siempre completos (v1.3)
+			elseif esGui(hijo) then
+				table.insert(data.children, describir(hijo, 6)) -- GUI completa (v1.3)
+			elseif profundidad > 1 then
 				table.insert(data.children, describir(hijo, profundidad - 1))
 			else
 				table.insert(data.children, { name = hijo.Name, class = hijo.ClassName })
@@ -369,6 +429,7 @@ local function doInspeccionarSeleccion()
 		ui:Log("Selección vacía — selecciona algo con el mouse o en el Explorer primero.")
 		return
 	end
+	contadorScripts = 0
 	local items = {}
 	for _, inst in ipairs(seleccion) do
 		table.insert(items, describir(inst, 2))
@@ -381,9 +442,16 @@ local function doInspeccionarSeleccion()
 			capturado_at = nowIso(),
 			play_mode = RunService:IsRunning(), -- true si capturaste durante Play (v1.2)
 			total = #items,
+			scripts = contadorScripts, -- v1.3
 			items = items,
-		}, "snapshot: selección (" .. #items .. " instancia(s))")
-		ui:Log("Selección subida: snapshots/" .. nombre .. " — " .. #items .. " instancia(s)")
+		}, "snapshot: selección (" .. #items .. " instancia(s), " .. contadorScripts .. " script(s))")
+		ui:Log(
+			("✓ Subida: snapshots/%s — %d instancia(s), %d script(s) con código completo"):format(
+				nombre,
+				#items,
+				contadorScripts
+			)
+		)
 	end)
 	if not ok then
 		reportError("inspeccionar selección", err)

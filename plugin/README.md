@@ -2,14 +2,16 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
-**v1.2** — mientras el panel está abierto, el objeto bajo el cursor se rodea de un **contorno cian brillante** y su path aparece en el panel (sabes qué vas a subir antes de pulsar Selección). La inspección ahora también reconoce **GUI** (UDim2 legible, texto, colores, fuente, z-index), **modelos con lógica** (`scripts_inside`: lista los scripts contenidos), lo **creado por el agente** (atributo `_RBX_Bridge` con el id del comando) y marca si la captura fue en modo Play (`play_mode`).
+**v1.3** — los **scripts suben siempre con su código completo**, sin importar la profundidad (selecciona una carpeta entera como ServerScriptService y llegan todos); **GUI completas** (árboles a profundidad completa, `ScreenGui`/`BillboardGui`/`SurfaceGui` con sus propiedades, `ImageLabel` con su imagen); `mesh_id`/`primary_part`/`shape` en el mundo 3D; y el log confirma cada subida con el número de instancias y scripts.
+
+**v1.2** — mientras el panel está abierto, el objeto bajo el cursor se rodea de un **contorno cian brillante** y su path aparece en el panel (sabes qué vas a subir antes de pulsar Selección). La inspección reconoce **GUI** (UDim2 legible, texto, colores, fuente, z-index), **modelos con lógica** (`scripts_inside`), lo **creado por el agente** (atributo `_RBX_Bridge` con el id del comando) y marca si la captura fue en modo Play (`play_mode`).
 
 **v1.1** — botón **🔍 Selección**: inspecciona lo que tengas seleccionado con el mouse (o en el Explorer) y sube un informe detallado a `snapshots/` del repo (path, clase, atributos, tamaño/posición/material, hijos hasta 2 niveles y, si es un script, su código fuente completo con conteo de líneas).
 
 ## Requisitos
 
 1. Roblox Studio actualizado.
-2. **Game Settings → Security → "Enable Studio Access to API Services" (Allow HTTP Requests)** activado en el place donde trabajas. Sin esto el plugin no puede hablar con GitHub.
+2. **Game Settings → Security → "Enable Studio Access to API Services" (Allow HTTP Requests)** activado en el place donde trabajas — **es un ajuste POR PLACE**: si entras a otro juego, actívalo ahí también, o las subidas fallarán (el log del panel te avisa).
 3. Un token de GitHub *fine-grained* con permiso **Contents: Read and write** limitado **solo** al repo `roblox-agent`. (GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens.)
 
 ## Instalación
@@ -38,7 +40,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
-7. **🔍 Selección** — con algo seleccionado en el editor, sube su informe a `snapshots/seleccion_<timestamp>.json` para que el agente lo lea desde GitHub. Con la v1.2, al pasar el cursor por el mundo el objeto se ilumina con un contorno cian y su path aparece en la fila 🖱 del panel (el highlight es del mundo 3D; para GUI 2D selecciona en el Explorer y pulsa Selección).
+7. **🔍 Selección** — con algo seleccionado (mouse, Explorer, o multi-selección con Ctrl/Shift), sube su informe a `snapshots/seleccion_<timestamp>.json`; el log confirma con `✓ Subida: … — N instancia(s), M script(s)`. Para subir código: selecciona la carpeta del servicio (p. ej. ServerScriptService) — todos los scripts dentro llegan completos. Para GUI: selecciona el ScreenGui en el Explorer. El highlight del cursor es del mundo 3D; la GUI 2D se elige en el Explorer.
 
 ## Qué NO hace (por diseño)
 
