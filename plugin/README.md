@@ -2,7 +2,9 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
-**v1.7** — **💬 Chat con el agente**: nueva pestaña CHAT junto a COMANDOS. Escribes tu mensaje (Enter o botón Enviar) → sube a `chat/inbox/`; el plugin revisa `chat/outbox/` cada 20 s y muestra las respuestas del agente en burbujas. Flujo honesto: el agente no está activo 24/7 — escribe tu mensaje y avísale en Notion («lee el chat»); él responde y te aparece en el panel solo. Incluye además lo de la v1.6: **barra de progreso** durante la ejecución de comandos, **registro con colores** (✓ verde / ERROR rojo), efecto de presión en los botones y la fila del cursor con la **clase** del objeto.
+**v1.8** — más amigable y con más contexto del entorno: botón **🗺 Entorno** (sube `snapshots/entorno_<ts>.json`: servicios con sus hijos, árbol ligero del Workspace, iluminación, nº de jugadores), el hover muestra **tamaño o nº de hijos** además de clase y path, **saludo de bienvenida** en el chat explicando cómo pedir cosas, y **auto-sync silencioso cada 60 s** (y tras cada respuesta del agente): si pides «agrega una caja» por el chat, el comando que prepara el agente aparece solo en COMANDOS para que pulses Ejecutar.
+
+**v1.7** — **💬 Chat con el agente**: pestaña CHAT junto a COMANDOS. Escribes tu mensaje (Enter o botón Enviar) → sube a `chat/inbox/`; el plugin revisa `chat/outbox/` cada 20 s y muestra las respuestas del agente en burbujas. Incluye lo de la v1.6: **barra de progreso** durante la ejecución, **registro con colores** (✓ verde / ERROR rojo), efecto de presión en los botones y la fila del cursor con la **clase** del objeto.
 
 **v1.5** — interfaz rediseñada: paleta oscura refinada, botones con efecto hover, filas de comandos con **franja de color según su estado** (ámbar = pendiente, azul = auto, verde = aprobado, violeta = procesando), secciones etiquetadas (Comandos / Registro), log más amplio y chip de versión en la cabecera.
 
@@ -42,13 +44,14 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 
 1. Abre el place de tu juego y pulsa **Agent Bridge** en la toolbar.
 2. Pega el token y **Guardar** (se almacena local con `plugin:SetSetting`, nunca en el código).
-3. **⟳ Sync** — trae los comandos de `commands/pending/`, `approved/` y `processing/`.
+3. **⟳ Sync** — trae los comandos de `commands/pending/`, `approved/` y `processing/` (también se sincroniza solo cada 60 s mientras el panel esté abierto).
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
 7. **🔍 Selección** — con algo seleccionado (mouse, Explorer, o multi-selección con Ctrl/Shift), sube su informe a `snapshots/seleccion_<timestamp>.json`; el log confirma con `✓ Subida: … — N instancia(s), M script(s)`. El highlight del cursor es del mundo 3D; la GUI 2D se elige en el Explorer.
-8. **⬆ Código** (v1.4) — sube TODOS los scripts del juego en un click, un archivo por servicio en `snapshots/codigo_<Servicio>_<timestamp>.json`. Ideal para análisis completo del place sin ir carpeta por carpeta.
-9. **💬 Chat** (v1.7) — pestaña CHAT: escribe al agente (Enter o Enviar). Tu mensaje sube a `chat/inbox/`; las respuestas del agente aparecen solas (sondeo cada 20 s desde `chat/outbox/`). Como el agente no está siempre activo, avísale en Notion («lee el chat») para que responda.
+8. **⬆ Código** (v1.4) — sube TODOS los scripts del juego en un click, un archivo por servicio en `snapshots/codigo_<Servicio>_<timestamp>.json`.
+9. **🗺 Entorno** (v1.8) — sube un mapa del place a `snapshots/entorno_<timestamp>.json` para que el agente entienda dónde está parado (servicios, árbol del Workspace, iluminación).
+10. **💬 Chat** (v1.7) — pestaña CHAT: escribe al agente (Enter o Enviar). Tu mensaje sube a `chat/inbox/`; las respuestas del agente aparecen solas (sondeo cada 20 s desde `chat/outbox/`). Como el agente no está siempre activo, avísale en Notion («lee el chat») para que responda. Si pides construir algo, el comando aparecerá en COMANDOS (se sincroniza solo) y pulsas **Ejecutar**.
 
 ## Qué NO hace (por diseño)
 

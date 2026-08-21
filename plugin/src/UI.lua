@@ -4,13 +4,14 @@
 -- v1.4: botón "⬆ Código" (subir todos los scripts del juego, un archivo por servicio).
 -- v1.5: rediseño visual — paleta oscura, hover en botones, franja de estado, secciones.
 -- v1.6: barra de progreso (SetProgress), log con colores (✓/ERROR), presión en botones.
--- v1.7: pestañas COMANDOS / 💬 CHAT — burbujas de conversación con el agente
---        (el usuario escribe aquí; el agente responde vía GitHub: chat/inbox ↔ chat/outbox).
+-- v1.7: pestañas COMANDOS / 💬 CHAT — burbujas de conversación con el agente.
+-- v1.8: botón "🗺 Entorno", hover con tamaño/hijos del objeto, saludo de bienvenida
+--        en el chat explicando cómo pedir cosas al agente.
 
 local UI = {}
 UI.__index = UI
 
-local VERSION = "v1.7"
+local VERSION = "v1.8"
 
 -- paleta (oscura, tipo Notion)
 local COLOR_BG = Color3.fromRGB(25, 25, 25)
@@ -25,6 +26,7 @@ local COLOR_WARN = Color3.fromRGB(203, 145, 47) -- ámbar
 local COLOR_NEUTRAL = Color3.fromRGB(82, 82, 82)
 local COLOR_HOVER = Color3.fromRGB(41, 196, 226) -- cian
 local COLOR_CODE = Color3.fromRGB(144, 101, 196) -- violeta
+local COLOR_MAP = Color3.fromRGB(62, 132, 128) -- verde azulado
 local COLOR_LOG_BG = Color3.fromRGB(20, 20, 20)
 local COLOR_LOG_TEXT = Color3.fromRGB(168, 215, 168)
 local COLOR_BUBBLE_ME = Color3.fromRGB(43, 78, 120) -- mis mensajes
@@ -36,6 +38,9 @@ local STATE_COLORS = {
 	approved = COLOR_OK,
 	processing = COLOR_CODE,
 }
+
+local SALUDO_CHAT =
+	"¡Hola! 👋 Soy tu agente. Escríbeme aquí como si hablaras conmigo: «agrega una caja», «pon más decoración», «sube el código del juego»… Tu mensaje viaja por GitHub; avísame en Notion con «lee el chat» y te respondo aquí mismo. Si pides construir algo, te dejo el comando listo en la pestaña COMANDOS para que pulses Ejecutar."
 
 local function escaparRich(texto)
 	return (texto:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
@@ -119,7 +124,7 @@ local function sectionLabel(parent, text, order)
 	return label
 end
 
--- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode, onSendChat }
+-- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode, onUploadEnvironment, onSendChat }
 function UI.new(widget, handlers)
 	local self = setmetatable({}, UI)
 
@@ -263,15 +268,30 @@ function UI.new(widget, handlers)
 	codeButton.Size = UDim2.new(0.334, -4, 1, 0)
 	codeButton.MouseButton1Click:Connect(handlers.onUploadCode)
 
-	-- acción secundaria (ancho completo)
-	local undoButton = makeButton(root, "↩ Deshacer último comando", COLOR_NEUTRAL)
-	undoButton.Size = UDim2.new(1, 0, 0, 24)
+	-- segunda fila de acciones (v1.8): entorno + deshacer
+	local actions2 = Instance.new("Frame")
+	actions2.BackgroundTransparency = 1
+	actions2.Size = UDim2.new(1, 0, 0, 24)
+	actions2.LayoutOrder = 6
+	actions2.Parent = root
+	local actions2Layout = Instance.new("UIListLayout")
+	actions2Layout.FillDirection = Enum.FillDirection.Horizontal
+	actions2Layout.Padding = UDim.new(0, 6)
+	actions2Layout.Parent = actions2
+
+	local envButton = makeButton(actions2, "🗺 Entorno", COLOR_MAP)
+	envButton.Size = UDim2.new(0.5, -3, 1, 0)
+	envButton.TextSize = 11
+	envButton.Font = Enum.Font.Gotham
+	envButton.MouseButton1Click:Connect(handlers.onUploadEnvironment)
+
+	local undoButton = makeButton(actions2, "↩ Deshacer último comando", COLOR_NEUTRAL)
+	undoButton.Size = UDim2.new(0.5, -3, 1, 0)
 	undoButton.TextSize = 11
 	undoButton.Font = Enum.Font.Gotham
-	undoButton.LayoutOrder = 6
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)
 
-	-- fila hover (v1.2): tarjeta con clase + path bajo el cursor
+	-- fila hover (v1.2/v1.8): tarjeta con clase + detalle + path bajo el cursor
 	local hoverCard = Instance.new("Frame")
 	hoverCard.BackgroundColor3 = COLOR_PANEL
 	hoverCard.Size = UDim2.new(1, 0, 0, 24)
@@ -306,7 +326,7 @@ function UI.new(widget, handlers)
 	-- contenedor de contenido (lista de comandos O chat)
 	local content = Instance.new("Frame")
 	content.BackgroundTransparency = 1
-	content.Size = UDim2.new(1, 0, 1, -440)
+	content.Size = UDim2.new(1, 0, 1, -414)
 	content.LayoutOrder = 9
 	content.Parent = root
 
@@ -378,7 +398,7 @@ function UI.new(widget, handlers)
 	chatInputLayout.Parent = chatInputRow
 
 	local chatInput = Instance.new("TextBox")
-	chatInput.PlaceholderText = "Escríbeme qué mejorar o qué hacer…"
+	chatInput.PlaceholderText = "Pídeme algo: «agrega una caja»…"
 	chatInput.PlaceholderColor3 = COLOR_MUTED
 	chatInput.Text = ""
 	chatInput.Size = UDim2.new(1, -76, 1, 0)
@@ -415,6 +435,7 @@ function UI.new(widget, handlers)
 	end)
 
 	self._chatFrame = chatFrame
+	self._chatSaludado = false
 
 	self._tabComandos.MouseButton1Click:Connect(function()
 		self:SetTab("comandos")
@@ -481,23 +502,28 @@ function UI:ShowTokenRow(visible)
 	self._tokenRow.Visible = visible
 end
 
--- v1.7: cambia entre la lista de comandos y el chat.
+-- v1.7/v1.8: cambia entre comandos y chat; la primera vez que abres el chat, saludo.
 function UI:SetTab(nombre)
 	local esComandos = nombre == "comandos"
 	self._list.Visible = esComandos
 	self._chatFrame.Visible = not esComandos
 	self._tabComandos.BackgroundColor3 = esComandos and COLOR_ACCENT or COLOR_NEUTRAL
 	self._tabChat.BackgroundColor3 = esComandos and COLOR_NEUTRAL or COLOR_ACCENT
+	if not esComandos and not self._chatSaludado then
+		self._chatSaludado = true
+		self:AddChatBubble("agente", SALUDO_CHAT)
+	end
 end
 
--- v1.2/v1.6: path (+ clase) del objeto bajo el cursor (nil = sin objetivo).
-function UI:SetHover(path, className)
+-- v1.2–v1.8: objeto bajo el cursor: clase, detalle (tamaño/hijos) y path.
+function UI:SetHover(path, className, detalle)
 	if path then
-		if className then
-			self._hover.Text = ("🖱 %s — %s"):format(className, path)
-		else
-			self._hover.Text = "🖱 " .. path
+		local texto = "🖱 " .. (className or "?")
+		if detalle then
+			texto ..= " · " .. detalle
 		end
+		texto ..= " — " .. path
+		self._hover.Text = texto
 	else
 		self._hover.Text = "🖱 (pasa el cursor sobre el mundo)"
 	end

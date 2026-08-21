@@ -10,8 +10,10 @@
 -- v1.4: botón "⬆ Código" — sube TODOS los scripts del juego de una vez, un archivo por
 --        servicio (snapshots/codigo_<Servicio>_<ts>.json), para análisis completo.
 -- v1.6: barra de progreso durante la ejecución + clase del objeto en la fila hover.
--- v1.7: pestaña 💬 CHAT — el usuario escribe mensajes que suben a chat/inbox/ y el
---        plugin sondea chat/outbox/ cada 20s para mostrar las respuestas del agente.
+-- v1.7: pestaña 💬 CHAT — mensajes a chat/inbox/ y sondeo de chat/outbox/ cada 20s.
+-- v1.8: botón "🗺 Entorno" (mapa del place: servicios, árbol ligero del Workspace,
+--        iluminación) + hover con tamaño/hijos + auto-sync silencioso cada 60s y tras
+--        cada respuesta del agente (los comandos pedidos por chat aparecen solos).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -36,7 +38,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 	false, -- habilitado al inicio
 	false, -- no sobreescribir estado previo
 	440, -- ancho default
-	560, -- alto default (v1.7: más alto para el chat)
+	560, -- alto default (v1.7+: más alto para el chat)
 	340, -- ancho mínimo
 	480 -- alto mínimo
 )
@@ -51,6 +53,7 @@ end)
 local ui
 local github
 local doSync
+local ultimoConteoComandos = nil -- v1.8: para el sync silencioso
 
 local function nowIso()
 	return DateTime.now():ToIsoDate()
@@ -529,6 +532,93 @@ local function doSubirCodigo()
 	setStatusReady()
 end
 
+-- ---------- mapa del entorno (v1.8) ----------
+
+local SERVICIOS_ENTORNO = {
+	"Workspace",
+	"ReplicatedStorage",
+	"ServerScriptService",
+	"ServerStorage",
+	"StarterGui",
+	"StarterPlayer",
+	"StarterPack",
+	"Lighting",
+	"Teams",
+}
+
+-- Árbol ligero (sin código fuente ni detalle de GUI): para orientarse en el place.
+local function arbolLigero(inst, profundidad)
+	local nodo = { name = inst.Name, class = inst.ClassName }
+	if profundidad > 1 then
+		local hijos = inst:GetChildren()
+		if #hijos > 0 then
+			nodo.children = {}
+			for i, hijo in ipairs(hijos) do
+				if i > 40 then
+					table.insert(nodo.children, { name = ("…y %d más"):format(#hijos - 40), class = "…" })
+					break
+				end
+				table.insert(nodo.children, arbolLigero(hijo, profundidad - 1))
+			end
+		end
+	end
+	return nodo
+end
+
+local function doSubirEntorno()
+	if not guardGithub() then
+		return
+	end
+	ui:SetStatus("mapeando entorno…", "busy")
+	local ok, err = pcall(function()
+		local servicios = {}
+		for _, nombre in ipairs(SERVICIOS_ENTORNO) do
+			local okServicio, servicio = pcall(function()
+				return game:GetService(nombre)
+			end)
+			if okServicio and servicio then
+				local hijos = servicio:GetChildren()
+				local primeros = {}
+				for i, hijo in ipairs(hijos) do
+					if i > 60 then
+						break
+					end
+					table.insert(primeros, hijo.ClassName .. ":" .. hijo.Name)
+				end
+				servicios[nombre] = { total_hijos = #hijos, primeros = primeros }
+			end
+		end
+		local lighting = {}
+		pcall(function()
+			local l = game:GetService("Lighting")
+			lighting.ambient = valorJson(l.Ambient)
+			lighting.outdoor_ambient = valorJson(l.OutdoorAmbient)
+			lighting.brightness = l.Brightness
+			lighting.clock_time = l.ClockTime
+			lighting.atmosphere = l:FindFirstChildOfClass("Atmosphere") ~= nil
+		end)
+		local jugadores = 0
+		pcall(function()
+			jugadores = #game:GetService("Players"):GetPlayers()
+		end)
+		local nombre = "entorno_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
+		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+			tipo = "entorno",
+			capturado_at = nowIso(),
+			play_mode = RunService:IsRunning(),
+			jugadores = jugadores,
+			servicios = servicios,
+			lighting = lighting,
+			workspace = arbolLigero(workspace, 2),
+		}, "snapshot: mapa del entorno")
+		ui:Log("✓ Entorno subido: snapshots/" .. nombre)
+	end)
+	if not ok then
+		reportError("mapear entorno", err)
+	end
+	setStatusReady()
+end
+
 -- ---------- chat con el agente (v1.7) ----------
 -- Canal: chat/inbox/ (mensajes del usuario) ↔ chat/outbox/ (respuestas del agente).
 -- El agente no está siempre activo: escribe aquí y avísale en Notion («lee el chat»);
@@ -572,6 +662,7 @@ local function revisarChat()
 	if not ok or type(archivos) ~= "table" then
 		return
 	end
+	local huboRespuesta = false
 	for _, archivo in ipairs(archivos) do
 		if archivo.name:match("^resp_%d%d%d%d%d%d%d%d_%d%d%d%d%d%d%.json$") and not chatVistos[archivo.name] then
 			chatVistos[archivo.name] = true
@@ -582,14 +673,19 @@ local function revisarChat()
 				if ok2 and resp and resp.texto then
 					ui:AddChatBubble("agente", resp.texto)
 					ui:Log("💬 Respuesta del agente recibida en el chat.")
+					huboRespuesta = true
 				end
 			end
 		end
 	end
 	chatPrimeraPasada = false
+	if huboRespuesta and doSync then
+		-- las respuestas suelen venir con comandos nuevos: sincroniza en silencio (v1.8)
+		pcall(doSync, true)
+	end
 end
 
--- ---------- highlight al pasar el cursor (v1.2) ----------
+-- ---------- highlight al pasar el cursor (v1.2/v1.8) ----------
 
 local hoverHighlight = nil
 local hoverConnection = nil
@@ -608,6 +704,18 @@ local function obtenerHighlight()
 	return hoverHighlight
 end
 
+-- detalle rápido del objeto bajo el cursor (v1.8): tamaño (BasePart) o nº de hijos (Model)
+local function detalleHover(adorno)
+	if adorno:IsA("BasePart") then
+		local s = adorno.Size
+		return ("%.0f×%.0f×%.0f studs"):format(s.X, s.Y, s.Z)
+	end
+	if adorno:IsA("Model") then
+		return ("%d hijos"):format(#adorno:GetChildren())
+	end
+	return nil
+end
+
 local function iniciarHover()
 	local mouse = plugin:GetMouse()
 	hoverConnection = RunService.Heartbeat:Connect(function()
@@ -618,7 +726,7 @@ local function iniciarHover()
 				-- adorneamos el modelo contenedor si existe (más legible que la part suelta)
 				local adorno = target:FindFirstAncestorOfClass("Model") or target
 				obtenerHighlight().Adornee = adorno
-				ui:SetHover(adorno:GetFullName(), adorno.ClassName) -- v1.6: clase + path
+				ui:SetHover(adorno:GetFullName(), adorno.ClassName, detalleHover(adorno))
 			else
 				if hoverHighlight then
 					hoverHighlight.Adornee = nil
@@ -641,12 +749,14 @@ local function detenerHover()
 end
 
 -- ---------- sync ----------
-
-doSync = function()
+-- silencioso = true: no ensucia el registro si no cambió el número de comandos (v1.8).
+doSync = function(silencioso)
 	if not guardGithub() then
 		return
 	end
-	ui:SetStatus("sincronizando…", "busy")
+	if not silencioso then
+		ui:SetStatus("sincronizando…", "busy")
+	end
 	local items = {}
 
 	local ok, err = pcall(function()
@@ -716,9 +826,14 @@ doSync = function()
 	end)
 
 	if not ok then
-		reportError("sync", err)
+		if not silencioso then
+			reportError("sync", err)
+		end
 	else
-		ui:Log(("Sync: %d comando(s) activos."):format(#items))
+		if not silencioso or ultimoConteoComandos ~= #items then
+			ui:Log(("Sync: %d comando(s) activos."):format(#items))
+		end
+		ultimoConteoComandos = #items
 		setStatusReady()
 	end
 	ui:SetCommands(items)
@@ -734,6 +849,7 @@ ui = UI.new(widget, {
 	onSaveToken = onSaveToken,
 	onInspectSelection = doInspeccionarSeleccion,
 	onUploadCode = doSubirCodigo,
+	onUploadEnvironment = doSubirEntorno,
 	onSendChat = doEnviarChat,
 })
 
@@ -747,11 +863,17 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 plugin.Unloading:Connect(detenerHover)
 
--- sondeo de respuestas del agente: cada 20s mientras el panel esté abierto (v1.7)
+-- sondeo periódico (v1.7/v1.8): chat cada 20s + sync silencioso cada 60s,
+-- solo mientras el panel esté abierto.
 task.spawn(function()
+	local tick = 0
 	while true do
 		if widget.Enabled then
 			pcall(revisarChat)
+			tick += 1
+			if tick % 3 == 0 and doSync then
+				pcall(doSync, true)
+			end
 		end
 		task.wait(20)
 	end
