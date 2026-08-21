@@ -1,4 +1,5 @@
 -- UI del dock widget: estado, lista de comandos, acciones y log.
+-- v1.1: botón "🔍 Selección" (inspeccionar lo seleccionado con el mouse).
 
 local UI = {}
 UI.__index = UI
@@ -47,7 +48,7 @@ local function rounded(instance)
 	corner.Parent = instance
 end
 
--- handlers: { onSync, onUndo, onSaveToken }
+-- handlers: { onSync, onUndo, onSaveToken, onInspectSelection }
 function UI.new(widget, handlers)
 	local self = setmetatable({}, UI)
 
@@ -129,12 +130,17 @@ function UI.new(widget, handlers)
 	actionsLayout.Parent = actions
 
 	local syncButton = makeButton(actions, "Sync")
-	syncButton.Size = UDim2.new(0.5, -3, 1, 0)
+	syncButton.Size = UDim2.new(0.333, -4, 1, 0)
 	syncButton.MouseButton1Click:Connect(handlers.onSync)
+
+	local inspectButton = makeButton(actions, "🔍 Selección")
+	inspectButton.BackgroundColor3 = Color3.fromRGB(70, 130, 90)
+	inspectButton.Size = UDim2.new(0.333, -4, 1, 0)
+	inspectButton.MouseButton1Click:Connect(handlers.onInspectSelection)
 
 	local undoButton = makeButton(actions, "Deshacer")
 	undoButton.BackgroundColor3 = COLOR_NEUTRAL
-	undoButton.Size = UDim2.new(0.5, -3, 1, 0)
+	undoButton.Size = UDim2.new(0.334, -4, 1, 0)
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)
 
 	-- lista de comandos

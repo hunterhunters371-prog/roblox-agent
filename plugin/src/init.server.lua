@@ -1,8 +1,10 @@
 -- Roblox Agent Bridge — punto de entrada del plugin (protocolo v0.1).
 -- Flujo: Sync → validar → aprobar → ejecutar → reportar. Todo el estado vive en GitHub.
+-- v1.1: botón "Selección" — sube a snapshots/ un informe de lo seleccionado con el mouse.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
+local Selection = game:GetService("Selection")
 
 local Config = require(script.Config)
 local GitHub = require(script.GitHub)
@@ -230,6 +232,107 @@ local function onSaveToken(token)
 	doSync()
 end
 
+-- ---------- inspección de selección (v1.1) ----------
+
+-- JSONEncode no acepta tipos de Roblox (Vector3, Color3…): los convertimos a texto.
+local function valorJson(v)
+	local t = typeof(v)
+	if t == "string" or t == "number" or t == "boolean" then
+		return v
+	end
+	if t == "table" then
+		local limpio = {}
+		for k2, v2 in v do
+			limpio[tostring(k2)] = valorJson(v2)
+		end
+		return limpio
+	end
+	return tostring(v)
+end
+
+local function colorATabla(color)
+	return {
+		math.floor(color.R * 255 + 0.5),
+		math.floor(color.G * 255 + 0.5),
+		math.floor(color.B * 255 + 0.5),
+	}
+end
+
+-- Describe una instancia: identidad, atributos, geometría (BasePart/Model),
+-- fuente completa si es script, e hijos (recursivo hasta 2 niveles).
+local function describir(instance, profundidad)
+	local data = {
+		name = instance.Name,
+		class = instance.ClassName,
+		path = instance:GetFullName(),
+	}
+	local attrs = instance:GetAttributes()
+	if next(attrs) ~= nil then
+		data.attributes = valorJson(attrs)
+	end
+	if instance:IsA("BasePart") then
+		data.size = { instance.Size.X, instance.Size.Y, instance.Size.Z }
+		data.position = { instance.Position.X, instance.Position.Y, instance.Position.Z }
+		data.material = instance.Material.Name
+		data.color = colorATabla(instance.Color)
+		data.anchored = instance.Anchored
+	end
+	if instance:IsA("Model") then
+		local okPivot, pivot = pcall(function()
+			return instance:GetPivot()
+		end)
+		if okPivot then
+			data.pivot = { pivot.Position.X, pivot.Position.Y, pivot.Position.Z }
+		end
+	end
+	if instance:IsA("Script") or instance:IsA("ModuleScript") or instance:IsA("LocalScript") then
+		data.source_lines = 1 + select(2, instance.Source:gsub("\n", "\n"))
+		data.source = instance.Source
+	end
+	local hijos = instance:GetChildren()
+	if #hijos > 0 then
+		data.children = {}
+		for _, hijo in ipairs(hijos) do
+			if profundidad > 1 then
+				table.insert(data.children, describir(hijo, profundidad - 1))
+			else
+				table.insert(data.children, { name = hijo.Name, class = hijo.ClassName })
+			end
+		end
+	end
+	return data
+end
+
+local function doInspeccionarSeleccion()
+	if not guardGithub() then
+		return
+	end
+	local seleccion = Selection:Get()
+	if #seleccion == 0 then
+		ui:Log("Selección vacía — selecciona algo con el mouse o en el Explorer primero.")
+		return
+	end
+	local items = {}
+	for _, inst in ipairs(seleccion) do
+		table.insert(items, describir(inst, 2))
+	end
+	ui:SetStatus("subiendo selección…", "busy")
+	local ok, err = pcall(function()
+		local nombre = "seleccion_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
+		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+			tipo = "seleccion",
+			capturado_at = nowIso(),
+			total = #items,
+			items = items,
+		}, "snapshot: selección (" .. #items .. " instancia(s))")
+		ui:Log("Selección subida: snapshots/" .. nombre .. " — " .. #items .. " instancia(s)")
+	end)
+	if not ok then
+		reportError("inspeccionar selección", err)
+	end
+	setStatusReady()
+end
+
 -- ---------- sync ----------
 
 doSync = function()
@@ -322,6 +425,7 @@ ui = UI.new(widget, {
 	end,
 	onUndo = doUndo,
 	onSaveToken = onSaveToken,
+	onInspectSelection = doInspeccionarSeleccion,
 })
 
 local savedToken = plugin:GetSetting("github_token")

@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.1** — botón **🔍 Selección**: inspecciona lo que tengas seleccionado con el mouse (o en el Explorer) y sube un informe detallado a `snapshots/` del repo (path, clase, atributos, tamaño/posición/material, hijos hasta 2 niveles y, si es un script, su código fuente completo con conteo de líneas).
+
 ## Requisitos
 
 1. Roblox Studio actualizado.
@@ -34,6 +36,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
 6. **↩ Deshacer** revierte el último comando vía `ChangeHistoryService`.
+7. **🔍 Selección** (v1.1) — con algo seleccionado en el editor, sube su informe a `snapshots/seleccion_<timestamp>.json` para que el agente lo lea desde GitHub.
 
 ## Qué NO hace (por diseño)
 
