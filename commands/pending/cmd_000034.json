@@ -1,0 +1,14 @@
+{
+"version":"0.1",
+"id":"cmd_000034",
+"title":"S1b · Data.Destinations: 6 destinos con distancia real y banda de tiempo",
+"created_by":"notion-agent",
+"created_at":"2026-08-23T00:05:00Z",
+"request":"DEPENDE DE cmd_000032. Registra los 6 destinos en ReplicatedStorage.Delivery60.Data.Destinations. DestinationRegistry.RandomId recorre toda esta tabla, asi que con esto las 3 casas nuevas entran en rotacion sin tocar el resto del codigo. pathDistanceStuds se mide por calles desde el PickupPad nuevo de la tienda en (-46, -12) y alimentara el chequeo de solvencia del Plan 9-1.",
+"options":{"require_approval":true,"create_waypoint":true},
+"operations":[
+{"op":"set_script_source","id":"op_1","path":"ReplicatedStorage.Delivery60.Data.Destinations","source":"-- Destinations | Catalogo de destinos de entrega (S1b: 6 destinos).\n--\n-- pathDistanceStuds: distancia recorrida POR CALLES desde el PickupPad de la\n-- tienda en (-46, -12) hasta el marcador, medida sobre las coordenadas reales\n-- de la geometria construida (no estimada a ojo). Se usa para:\n--   1. Elegir la banda de dificultad de cada destino.\n--   2. El chequeo de solvencia (Plan 9-1): un paquete lento no debe asignarse\n--      nunca a un destino imposible de alcanzar en 60 s.\n-- PENDIENTE: validar con cronometro en playtest (Plan 9-3). Si el valor real\n-- se desvia mas de un 15 %, corregir aqui y no en la logica.\n--\n-- timeBandSeconds: segundos estimados andando (WalkSpeed 16). Esprintando se\n-- recorre en ~2/3 de ese tiempo.\n\nlocal Destinations = {\n\tHouse_4 = {\n\t\tid = \"House_4\",\n\t\tdisplayName = \"House #4\",\n\t\tzone = \"Noroeste\",\n\t\tpathDistanceStuds = 154,\n\t\ttimeBandSeconds = 25,\n\t},\n\tHouse_5 = {\n\t\tid = \"House_5\",\n\t\tdisplayName = \"House #5\",\n\t\tzone = \"Sur\",\n\t\tpathDistanceStuds = 346,\n\t\ttimeBandSeconds = 25,\n\t},\n\tHouse_1 = {\n\t\tid = \"House_1\",\n\t\tdisplayName = \"House #1\",\n\t\tzone = \"Oeste\",\n\t\tpathDistanceStuds = 374,\n\t\ttimeBandSeconds = 25,\n\t},\n\tHouse_6 = {\n\t\tid = \"House_6\",\n\t\tdisplayName = \"House #6\",\n\t\tzone = \"Noreste\",\n\t\tpathDistanceStuds = 446,\n\t\ttimeBandSeconds = 35,\n\t},\n\tHouse_2 = {\n\t\tid = \"House_2\",\n\t\tdisplayName = \"House #2\",\n\t\tzone = \"Sur lejano\",\n\t\tpathDistanceStuds = 626,\n\t\ttimeBandSeconds = 45,\n\t},\n\tHouse_3 = {\n\t\tid = \"House_3\",\n\t\tdisplayName = \"House #3\",\n\t\tzone = \"Este lejano\",\n\t\tpathDistanceStuds = 786,\n\t\ttimeBandSeconds = 55,\n\t},\n}\n\nreturn Destinations\n"},
+{"op":"inspect_instance","id":"op_2","path":"ReplicatedStorage.Delivery60.Data.Destinations"},
+{"op":"inspect_tree","id":"op_3","path":"ServerScriptService.Delivery60","max_depth":2}
+]
+}
