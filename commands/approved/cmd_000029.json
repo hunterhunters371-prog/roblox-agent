@@ -1,0 +1,106 @@
+{
+  "version": "0.1",
+  "id": "cmd_000029",
+  "title": "S1 · FIX entorno: suelo, puerta del HQ y casas fuera de la calzada",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T23:20:00Z",
+  "request": "CORRECCIÓN de bloqueadores detectados en el playtest (capturas del usuario + lectura de cmd_000022): (1) el place NO tiene Baseplate, así que la ciudad flota en el vacío -> se añade suelo propio con la cara superior en y=0; (2) el HQ es una caja SELLADA con el spawn dentro y el PickupPad fuera, por lo que el jugador nace encerrado y no puede activar NINGUNA mecánica -> se abre puerta en la pared sur; (3) House_1 y House_3 estaban construidas ENCIMA de RoadX y House_2 sobre el final de RoadZ -> se desplazan fuera de la calzada y su entrada pasa a mirar hacia el marcador y la calle. Rotación en GRADOS: verificado en plugin/src/Ops.lua (toCFrame usa math.rad).",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "build_from_spec",
+      "id": "op_1",
+      "parts": [
+        { "class": "Part", "name": "Ground", "parent": "Workspace.Delivery60.City", "size": [1700, 4, 1000], "position": [160, -2, 250], "properties": { "Color": [86, 125, 70], "Material": "Grass" } },
+        { "class": "Part", "name": "Sidewalk_X_N", "parent": "Workspace.Delivery60.City", "size": [1120, 0.15, 3], "position": [160, 0.07, -9], "properties": { "Color": [190, 190, 185], "Material": "Concrete" } },
+        { "class": "Part", "name": "Sidewalk_X_S", "parent": "Workspace.Delivery60.City", "size": [1120, 0.15, 3], "position": [160, 0.07, 9], "properties": { "Color": [190, 190, 185], "Material": "Concrete" } },
+        { "class": "Part", "name": "Sidewalk_Z_W", "parent": "Workspace.Delivery60.City", "size": [3, 0.15, 560], "position": [-9, 0.07, 280], "properties": { "Color": [190, 190, 185], "Material": "Concrete" } },
+        { "class": "Part", "name": "Sidewalk_Z_E", "parent": "Workspace.Delivery60.City", "size": [3, 0.15, 560], "position": [9, 0.07, 280], "properties": { "Color": [190, 190, 185], "Material": "Concrete" } }
+      ]
+    },
+    { "op": "delete_instance", "id": "op_2", "path": "Workspace.Delivery60.HQ.WallS" },
+    {
+      "op": "build_from_spec",
+      "id": "op_3",
+      "parts": [
+        { "class": "Part", "name": "WallS_L", "parent": "Workspace.Delivery60.HQ", "size": [7, 8, 1], "position": [-6.5, 5, 9.5], "properties": { "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallS_R", "parent": "Workspace.Delivery60.HQ", "size": [7, 8, 1], "position": [6.5, 5, 9.5], "properties": { "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallS_Lintel", "parent": "Workspace.Delivery60.HQ", "size": [6, 1.5, 1], "position": [0, 8.25, 9.5], "properties": { "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "DoorPost_L", "parent": "Workspace.Delivery60.HQ", "size": [0.4, 6.5, 1.4], "position": [-3.2, 4.25, 9.5], "properties": { "Color": [90, 90, 95], "Material": "Metal" } },
+        { "class": "Part", "name": "DoorPost_R", "parent": "Workspace.Delivery60.HQ", "size": [0.4, 6.5, 1.4], "position": [3.2, 4.25, 9.5], "properties": { "Color": [90, 90, 95], "Material": "Metal" } },
+        { "class": "Part", "name": "Steps", "parent": "Workspace.Delivery60.HQ", "size": [8, 0.5, 3], "position": [0, 0.75, 11.5], "properties": { "Color": [180, 180, 175], "Material": "Concrete" } },
+        { "class": "Part", "name": "Awning", "parent": "Workspace.Delivery60.HQ", "size": [9, 0.4, 3.2], "position": [0, 8.6, 11.4], "properties": { "Color": [200, 80, 40], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Lamp_L_Post", "parent": "Workspace.Delivery60.HQ", "size": [0.4, 5, 0.4], "position": [-4.5, 2.5, 14], "properties": { "Color": [60, 60, 65], "Material": "Metal" } },
+        { "class": "Part", "name": "Lamp_L_Head", "parent": "Workspace.Delivery60.HQ", "size": [1, 0.6, 1], "position": [-4.5, 5.3, 14], "properties": { "Color": [255, 240, 180], "Material": "Neon" } },
+        { "class": "Part", "name": "Lamp_R_Post", "parent": "Workspace.Delivery60.HQ", "size": [0.4, 5, 0.4], "position": [4.5, 2.5, 14], "properties": { "Color": [60, 60, 65], "Material": "Metal" } },
+        { "class": "Part", "name": "Lamp_R_Head", "parent": "Workspace.Delivery60.HQ", "size": [1, 0.6, 1], "position": [4.5, 5.3, 14], "properties": { "Color": [255, 240, 180], "Material": "Neon" } }
+      ]
+    },
+    { "op": "create_instance", "id": "op_4", "path": "Workspace.Delivery60.HQ.Lamp_L_Head.Light", "class": "PointLight", "properties": { "Brightness": 2, "Range": 26, "Color": [255, 240, 180] } },
+    { "op": "create_instance", "id": "op_5", "path": "Workspace.Delivery60.HQ.Lamp_R_Head.Light", "class": "PointLight", "properties": { "Brightness": 2, "Range": 26, "Color": [255, 240, 180] } },
+
+    { "op": "set_transform", "id": "op_6", "path": "Workspace.Delivery60.Destinations.House_1_Floor", "position": [-400, 0.5, 16] },
+    { "op": "set_transform", "id": "op_7", "path": "Workspace.Delivery60.Destinations.House_1_WallS", "position": [-400, 4, 21.5] },
+    { "op": "set_transform", "id": "op_8", "path": "Workspace.Delivery60.Destinations.House_1_WallW", "position": [-405.5, 4, 16] },
+    { "op": "set_transform", "id": "op_9", "path": "Workspace.Delivery60.Destinations.House_1_WallE", "position": [-394.5, 4, 16] },
+    { "op": "set_transform", "id": "op_10", "path": "Workspace.Delivery60.Destinations.House_1_Roof", "position": [-400, 7.5, 16] },
+    { "op": "delete_instance", "id": "op_11", "path": "Workspace.Delivery60.Destinations.House_1_WallN" },
+    {
+      "op": "build_from_spec",
+      "id": "op_12",
+      "parts": [
+        { "class": "Part", "name": "House_1_WallN_L", "parent": "Workspace.Delivery60.Destinations", "size": [4, 6, 1], "position": [-404, 4, 10.5], "properties": { "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallN_R", "parent": "Workspace.Delivery60.Destinations", "size": [4, 6, 1], "position": [-396, 4, 10.5], "properties": { "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallN_Lintel", "parent": "Workspace.Delivery60.Destinations", "size": [4, 1, 1], "position": [-400, 6.5, 10.5], "properties": { "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_Door", "parent": "Workspace.Delivery60.Destinations", "size": [3.9, 5, 0.25], "position": [-402, 3.5, 12.45], "rotation": [0, 90, 0], "properties": { "Color": [110, 70, 40], "Material": "WoodPlanks" } },
+        { "class": "Part", "name": "House_1_DoorPost_L", "parent": "Workspace.Delivery60.Destinations", "size": [0.3, 5.4, 1.3], "position": [-402.2, 3.7, 10.5], "properties": { "Color": [120, 80, 45], "Material": "Wood" } },
+        { "class": "Part", "name": "House_1_DoorPost_R", "parent": "Workspace.Delivery60.Destinations", "size": [0.3, 5.4, 1.3], "position": [-397.8, 3.7, 10.5], "properties": { "Color": [120, 80, 45], "Material": "Wood" } }
+      ]
+    },
+
+    { "op": "set_transform", "id": "op_13", "path": "Workspace.Delivery60.Destinations.House_2_Floor", "position": [16, 0.5, 560] },
+    { "op": "set_transform", "id": "op_14", "path": "Workspace.Delivery60.Destinations.House_2_WallN", "position": [16, 4, 554.5] },
+    { "op": "set_transform", "id": "op_15", "path": "Workspace.Delivery60.Destinations.House_2_WallS", "position": [16, 4, 565.5] },
+    { "op": "set_transform", "id": "op_16", "path": "Workspace.Delivery60.Destinations.House_2_WallE", "position": [21.5, 4, 560] },
+    { "op": "set_transform", "id": "op_17", "path": "Workspace.Delivery60.Destinations.House_2_Roof", "position": [16, 7.5, 560] },
+    { "op": "set_transform", "id": "op_18", "path": "Workspace.Delivery60.Destinations.House_2_Marker", "position": [8, 0.15, 560] },
+    { "op": "delete_instance", "id": "op_19", "path": "Workspace.Delivery60.Destinations.House_2_WallW" },
+    {
+      "op": "build_from_spec",
+      "id": "op_20",
+      "parts": [
+        { "class": "Part", "name": "House_2_WallW_S", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 4], "position": [10.5, 4, 556], "properties": { "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallW_N", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 4], "position": [10.5, 4, 564], "properties": { "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallW_Lintel", "parent": "Workspace.Delivery60.Destinations", "size": [1, 1, 4], "position": [10.5, 6.5, 560], "properties": { "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_Door", "parent": "Workspace.Delivery60.Destinations", "size": [3.9, 5, 0.25], "position": [11.2, 3.5, 559.95], "rotation": [0, 90, 0], "properties": { "Color": [110, 70, 40], "Material": "WoodPlanks" } },
+        { "class": "Part", "name": "House_2_DoorPost_S", "parent": "Workspace.Delivery60.Destinations", "size": [1.3, 5.4, 0.3], "position": [10.5, 3.7, 557.8], "properties": { "Color": [120, 80, 45], "Material": "Wood" } },
+        { "class": "Part", "name": "House_2_DoorPost_N", "parent": "Workspace.Delivery60.Destinations", "size": [1.3, 5.4, 0.3], "position": [10.5, 3.7, 562.2], "properties": { "Color": [120, 80, 45], "Material": "Wood" } }
+      ]
+    },
+
+    { "op": "set_transform", "id": "op_21", "path": "Workspace.Delivery60.Destinations.House_3_Floor", "position": [720, 0.5, 16] },
+    { "op": "set_transform", "id": "op_22", "path": "Workspace.Delivery60.Destinations.House_3_WallS", "position": [720, 4, 21.5] },
+    { "op": "set_transform", "id": "op_23", "path": "Workspace.Delivery60.Destinations.House_3_WallW", "position": [714.5, 4, 16] },
+    { "op": "set_transform", "id": "op_24", "path": "Workspace.Delivery60.Destinations.House_3_WallE", "position": [725.5, 4, 16] },
+    { "op": "set_transform", "id": "op_25", "path": "Workspace.Delivery60.Destinations.House_3_Roof", "position": [720, 7.5, 16] },
+    { "op": "delete_instance", "id": "op_26", "path": "Workspace.Delivery60.Destinations.House_3_WallN" },
+    {
+      "op": "build_from_spec",
+      "id": "op_27",
+      "parts": [
+        { "class": "Part", "name": "House_3_WallN_L", "parent": "Workspace.Delivery60.Destinations", "size": [4, 6, 1], "position": [716, 4, 10.5], "properties": { "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallN_R", "parent": "Workspace.Delivery60.Destinations", "size": [4, 6, 1], "position": [724, 4, 10.5], "properties": { "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallN_Lintel", "parent": "Workspace.Delivery60.Destinations", "size": [4, 1, 1], "position": [720, 6.5, 10.5], "properties": { "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_Door", "parent": "Workspace.Delivery60.Destinations", "size": [3.9, 5, 0.25], "position": [718, 3.5, 12.45], "rotation": [0, 90, 0], "properties": { "Color": [110, 70, 40], "Material": "WoodPlanks" } },
+        { "class": "Part", "name": "House_3_DoorPost_L", "parent": "Workspace.Delivery60.Destinations", "size": [0.3, 5.4, 1.3], "position": [717.8, 3.7, 10.5], "properties": { "Color": [120, 80, 45], "Material": "Wood" } },
+        { "class": "Part", "name": "House_3_DoorPost_R", "parent": "Workspace.Delivery60.Destinations", "size": [0.3, 5.4, 1.3], "position": [722.2, 3.7, 10.5], "properties": { "Color": [120, 80, 45], "Material": "Wood" } }
+      ]
+    },
+
+    { "op": "find_instances", "id": "op_28", "path": "Workspace", "class": "SpawnLocation" },
+    { "op": "inspect_tree", "id": "op_29", "path": "Workspace.Delivery60", "max_depth": 2 }
+  ]
+}
