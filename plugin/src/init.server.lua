@@ -24,6 +24,9 @@
 -- v1.9.2: la réplica y la captura señalan QUÉ se agregó: el registro lista cada
 --        copia con su path, nº de nodos y scripts, y el result.json del comando
 --        trae data.copias con ese detalle.
+-- v1.9.3: token a prueba de pegados accidentales (rescata github_pat_*/ghp_* de
+--        un comando pegado por error) y prueba del token al guardarlo; además
+--        ListFiles ya no oculta un token roto detrás de un "0 comandos".
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -84,7 +87,9 @@ end
 local function reportError(context, err)
 	local message = (type(err) == "table" and err.message) or tostring(err)
 	local mensajeLower = message:lower()
-	if mensajeLower:find("can only be executed by game server") then
+	if mensajeLower:find("unallowed character") then
+		message ..= " — el token guardado no es válido (¿pegaste otra cosa por accidente?). Vuelve a guardar SOLO el token."
+	elseif mensajeLower:find("can only be executed by game server") then
 		message ..= " — Studio bloquea el HTTP del plugin en modo Play; las capturas quedan en cola y suben al detener la simulación."
 	elseif mensajeLower:find("http") and mensajeLower:find("enabled") then
 		message ..= " — activa 'Allow HTTP Requests' en Game Settings → Security."
@@ -345,11 +350,48 @@ local function doUndo()
 	end
 end
 
+-- v1.9.3: acepta solo el token aunque pegues un comando entero por accidente
+-- (p. ej. `grep -cE "github_pat_..." .env`): rescata el patrón github_pat_* / ghp_*.
+local function extraerToken(texto)
+	texto = texto:gsub("^%s*(.-)%s*$", "%1")
+	if texto:match("^github_pat_[A-Za-z0-9_]+$") or texto:match("^ghp_[A-Za-z0-9_]+$") then
+		return texto, false
+	end
+	local rescatado = texto:match("(github_pat_[A-Za-z0-9_]+)") or texto:match("(ghp_[A-Za-z0-9_]+)")
+	if rescatado then
+		return rescatado, true
+	end
+	return nil
+end
+
 local function onSaveToken(token)
-	plugin:SetSetting("github_token", token)
-	github = GitHub.new(token)
+	local limpio, rescatado = extraerToken(token)
+	if not limpio then
+		ui:Log("ERROR · eso no parece un token de GitHub. Pega SOLO el token (empieza por github_pat_ o ghp_).")
+		ui:ShowTokenRow(true)
+		return
+	end
+	if rescatado then
+		ui:Log("⚠ Pegaste más que el token (¿un comando?) — me quedo solo con el token.")
+	end
+	plugin:SetSetting("github_token", limpio)
+	github = GitHub.new(limpio)
 	ui:ShowTokenRow(false)
-	ui:Log("Token guardado. Sincronizando…")
+	-- v1.9.3: probar el token de verdad, no basta con guardarlo
+	if RunService:IsRunning() then
+		ui:Log("Token guardado. En modo Play no puedo probarlo (HTTP bloqueado); se probará al detener la simulación.")
+		return
+	end
+	local ok, err = pcall(function()
+		github:ListFiles(Config.PATHS.pending)
+	end)
+	if ok then
+		ui:Log("✓ Token válido y con acceso al repo. Sincronizando…")
+	else
+		reportError("probar token", err)
+		ui:Log("El token se guardó, pero la prueba falló — revísalo (¿fine-grained con Contents: Read and write sobre este repo?).")
+		return
+	end
 	doSync()
 end
 
