@@ -1,0 +1,1 @@
+{"finished_at":"2026-08-22T19:33:01Z","waypoint":"cmd_000016","started_at":"2026-08-22T19:32:58Z","errors":[{"message":"Workspace.Map.Plots.Plot3","code":"PATH_NOT_FOUND","op_id":"op_1"}],"id":"cmd_000016","status":"failed","progress":{"total":1,"done":1},"results":[{"id":"op_1","status":"failed","action":"failed","detail":"Workspace.Map.Plots.Plot3"}]}
