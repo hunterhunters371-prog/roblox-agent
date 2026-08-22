@@ -17,6 +17,10 @@
 -- v1.9: botón "🧬 Replicar" — la selección se captura como plano rejugable
 --        (snapshots/plan_<ts>.json) para la nueva op replicate_instance; el plano
 --        incluye geometría, propiedades, GUI, scripts y soldaduras internas.
+-- v1.9.1: captura por cursor cuando la selección está vacía (reconoce objetos
+--        creados por código en modo Play) + cola local de snapshots: en Play
+--        Studio bloquea el HTTP del plugin ("can only be executed by game
+--        server") y las capturas suben solas al detener la simulación.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -58,6 +62,9 @@ local ui
 local github
 local doSync
 local ultimoConteoComandos = nil -- v1.8: para el sync silencioso
+-- v1.9.1: cursor para capturar sin selección + cola de snapshots en modo Play
+local ultimoHover = nil
+local pendientesSubida = {}
 
 local function nowIso()
 	return DateTime.now():ToIsoDate()
@@ -73,7 +80,10 @@ end
 
 local function reportError(context, err)
 	local message = (type(err) == "table" and err.message) or tostring(err)
-	if message:lower():find("http") and message:lower():find("enabled") then
+	local mensajeLower = message:lower()
+	if mensajeLower:find("can only be executed by game server") then
+		message ..= " — Studio bloquea el HTTP del plugin en modo Play; las capturas quedan en cola y suben al detener la simulación."
+	elseif mensajeLower:find("http") and mensajeLower:find("enabled") then
 		message ..= " — activa 'Allow HTTP Requests' en Game Settings → Security."
 	end
 	ui:Log("ERROR · " .. context .. ": " .. message)
@@ -88,6 +98,79 @@ local function guardGithub()
 		return false
 	end
 	return true
+end
+
+-- ---------- captura por cursor y cola Play (v1.9.1) ----------
+
+-- Objetivo para inspección/réplica: la selección de Studio si la hay; si está
+-- vacía (en modo Play el click sobre el mundo no selecciona), el objeto bajo
+-- el cursor — así también se reconocen objetos creados por código en ejecución.
+local function objetivoActual()
+	local seleccion = Selection:Get()
+	if #seleccion > 0 then
+		return seleccion, "selección"
+	end
+	local ok, adorno = pcall(function()
+		if ultimoHover then
+			return ultimoHover:FindFirstAncestorOfClass("Model") or ultimoHover
+		end
+		return nil
+	end)
+	if ok and adorno then
+		return { adorno }, "cursor"
+	end
+	return nil, nil
+end
+
+-- En modo Play, Studio bloquea el HTTP del plugin con este error.
+local function esErrorHttpDePlay(err)
+	local mensaje = (type(err) == "table" and err.message) or tostring(err)
+	return mensaje:lower():find("can only be executed by game server") ~= nil
+end
+
+-- Sube las capturas que quedaron en cola durante el modo Play.
+local function flushPendientes()
+	if not github or #pendientesSubida == 0 then
+		return
+	end
+	local enCola = pendientesSubida
+	pendientesSubida = {}
+	local subidos = 0
+	for _, item in ipairs(enCola) do
+		local ok = pcall(function()
+			github:WriteJson(Config.PATHS.snapshots .. "/" .. item.nombre, item.tabla, item.mensaje)
+		end)
+		if ok then
+			subidos += 1
+		else
+			table.insert(pendientesSubida, item) -- sigue en cola para el próximo intento
+		end
+	end
+	if subidos > 0 then
+		ui:Log(("✓ Cola de Play subida: %d snapshot(s) a snapshots/"):format(subidos))
+	end
+end
+
+-- Sube un snapshot; si HTTP está bloqueado (Play), lo deja en cola local.
+-- Devuelve true si subió, false si quedó en cola; otros errores se relanzan.
+local function subirSnapshot(nombre, tabla, mensaje)
+	local ok, err = pcall(function()
+		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, tabla, mensaje)
+	end)
+	if ok then
+		return true
+	end
+	if esErrorHttpDePlay(err) then
+		table.insert(pendientesSubida, { nombre = nombre, tabla = tabla, mensaje = mensaje })
+		ui:Log(
+			("⏸ HTTP bloqueado en modo Play — %s queda en cola (%d); sube solo al detener la simulación."):format(
+				nombre,
+				#pendientesSubida
+			)
+		)
+		return false
+	end
+	error(err, 0)
 end
 
 -- ---------- acceso a comandos ----------
@@ -440,20 +523,23 @@ local function doInspeccionarSeleccion()
 	if not guardGithub() then
 		return
 	end
-	local seleccion = Selection:Get()
-	if #seleccion == 0 then
-		ui:Log("Selección vacía — selecciona algo con el mouse o en el Explorer primero.")
+	local objetivos, origen = objetivoActual()
+	if not objetivos then
+		ui:Log("Selección vacía y nada bajo el cursor — apunta al objeto con el mouse o selecciónalo en el Explorer.")
 		return
+	end
+	if origen == "cursor" then
+		ui:Log("Sin selección: uso el objeto bajo el cursor → " .. objetivos[1]:GetFullName())
 	end
 	contadorScripts = 0
 	local items = {}
-	for _, inst in ipairs(seleccion) do
+	for _, inst in ipairs(objetivos) do
 		table.insert(items, describir(inst, 3)) -- v1.3.1: profundidad base 3 (alcanza scripts dentro de modelos)
 	end
 	ui:SetStatus("subiendo selección…", "busy")
 	local ok, err = pcall(function()
 		local nombre = "seleccion_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
-		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+		local subio = subirSnapshot(nombre, {
 			tipo = "seleccion",
 			capturado_at = nowIso(),
 			play_mode = RunService:IsRunning(), -- true si capturaste durante Play (v1.2)
@@ -461,13 +547,15 @@ local function doInspeccionarSeleccion()
 			scripts = contadorScripts, -- v1.3
 			items = items,
 		}, "snapshot: selección (" .. #items .. " instancia(s), " .. contadorScripts .. " script(s))")
-		ui:Log(
-			("✓ Subida: snapshots/%s — %d instancia(s), %d script(s) con código completo"):format(
-				nombre,
-				#items,
-				contadorScripts
+		if subio then
+			ui:Log(
+				("✓ Subida: snapshots/%s — %d instancia(s), %d script(s) con código completo"):format(
+					nombre,
+					#items,
+					contadorScripts
+				)
 			)
-		)
+		end
 	end)
 	if not ok then
 		reportError("inspeccionar selección", err)
@@ -493,7 +581,7 @@ local function doSubirCodigo()
 		return
 	end
 	ui:SetStatus("recopilando código…", "busy")
-	local totalScripts, subidas, fallos = 0, 0, 0
+	local totalScripts, subidas, fallos, enCola = 0, 0, 0, 0 -- v1.9.1: enCola = snapshots esperando fin de Play
 	for _, nombreServicio in ipairs(SERVICIOS_CODIGO) do
 		local okServicio, servicio = pcall(function()
 			return game:GetService(nombreServicio)
@@ -507,9 +595,10 @@ local function doSubirCodigo()
 			end
 			if #items > 0 then
 				totalScripts += #items
+				local subio = false
 				local ok, err = pcall(function()
 					local nombre = ("codigo_%s_%s.json"):format(nombreServicio, os.date("!%Y%m%d_%H%M%S"))
-					github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+					subio = subirSnapshot(nombre, {
 						tipo = "codigo",
 						servicio = nombreServicio,
 						capturado_at = nowIso(),
@@ -518,9 +607,11 @@ local function doSubirCodigo()
 						items = items,
 					}, ("snapshot: código de %s (%d scripts)"):format(nombreServicio, #items))
 				end)
-				if ok then
+				if ok and subio then
 					subidas += 1
 					ui:Log(("✓ Código de %s: %d script(s)"):format(nombreServicio, #items))
+				elseif ok then
+					enCola += 1 -- v1.9.1: HTTP bloqueado en Play, queda en cola
 				else
 					fallos += 1
 					reportError("subir código de " .. nombreServicio, err)
@@ -530,8 +621,10 @@ local function doSubirCodigo()
 	end
 	if totalScripts == 0 then
 		ui:Log("No encontré scripts en los servicios habituales de este place.")
-	elseif fallos == 0 then
+	elseif fallos == 0 and enCola == 0 then
 		ui:Log(("✓ Todo el código subido: %d script(s) en %d archivo(s)"):format(totalScripts, subidas))
+	elseif fallos == 0 then
+		ui:Log(("✓ Código: %d archivo(s) subidos, %d en cola (suben al detener Play)"):format(subidas, enCola))
 	end
 	setStatusReady()
 end
@@ -606,7 +699,7 @@ local function doSubirEntorno()
 			jugadores = #game:GetService("Players"):GetPlayers()
 		end)
 		local nombre = "entorno_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
-		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+		local subio = subirSnapshot(nombre, {
 			tipo = "entorno",
 			capturado_at = nowIso(),
 			play_mode = RunService:IsRunning(),
@@ -615,7 +708,9 @@ local function doSubirEntorno()
 			lighting = lighting,
 			workspace = arbolLigero(workspace, 2),
 		}, "snapshot: mapa del entorno")
-		ui:Log("✓ Entorno subido: snapshots/" .. nombre)
+		if subio then
+			ui:Log("✓ Entorno subido: snapshots/" .. nombre)
+		end
 	end)
 	if not ok then
 		reportError("mapear entorno", err)
@@ -641,22 +736,25 @@ local function doCapturarPlan()
 	if not guardGithub() then
 		return
 	end
-	local seleccion = Selection:Get()
-	if #seleccion == 0 then
-		ui:Log("Selección vacía — selecciona lo que quieres replicar (mouse o Explorer).")
+	local objetivos, origen = objetivoActual()
+	if not objetivos then
+		ui:Log("Selección vacía y nada bajo el cursor — apunta al objeto con el mouse o selecciónalo en el Explorer.")
 		return
+	end
+	if origen == "cursor" then
+		ui:Log("Sin selección: uso el objeto bajo el cursor → " .. objetivos[1]:GetFullName())
 	end
 	ui:SetStatus("capturando plano…", "busy")
 	local ok, err = pcall(function()
 		local planos = {}
 		local nodos = 0
-		for _, inst in ipairs(seleccion) do
+		for _, inst in ipairs(objetivos) do
 			local plano = Ops.CaptureBlueprint(inst, 10, true)
 			table.insert(planos, plano)
 			nodos += contarNodos(plano)
 		end
 		local nombre = "plan_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
-		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+		local subio = subirSnapshot(nombre, {
 			tipo = "plan_replica",
 			capturado_at = nowIso(),
 			play_mode = RunService:IsRunning(),
@@ -665,7 +763,9 @@ local function doCapturarPlan()
 			instrucciones = "Rejugable con la op replicate_instance: pasa cada plano como 'spec', o usa 'path' con el objeto en vivo. Opciones: new_parent (obligatorio), new_name, offset, count (1-50), step.",
 			planos = planos,
 		}, ("snapshot: plano de réplica (%d raíz/raíces, %d nodos)"):format(#planos, nodos))
-		ui:Log(("✓ Plano subido: snapshots/%s — %d raíz/raíces, %d nodos"):format(nombre, #planos, nodos))
+		if subio then
+			ui:Log(("✓ Plano subido: snapshots/%s — %d raíz/raíces, %d nodos"):format(nombre, #planos, nodos))
+		end
 	end)
 	if not ok then
 		reportError("capturar plano", err)
@@ -743,7 +843,7 @@ end
 
 local hoverHighlight = nil
 local hoverConnection = nil
-local ultimoHover = nil
+-- (ultimoHover vive arriba, en el estado del controlador — v1.9.1)
 
 local function obtenerHighlight()
 	if not hoverHighlight then
@@ -889,6 +989,7 @@ doSync = function(silencioso)
 		end
 		ultimoConteoComandos = #items
 		setStatusReady()
+		pcall(flushPendientes) -- v1.9.1: si hubo capturas en cola (Play), suben aquí
 	end
 	ui:SetCommands(items)
 end
@@ -917,6 +1018,13 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	end
 end)
 plugin.Unloading:Connect(detenerHover)
+
+-- v1.9.1: al detener la simulación, las capturas en cola suben solas
+RunService.RunStateChanged:Connect(function(state)
+	if state == Enum.RunState.Stopped then
+		task.defer(flushPendientes)
+	end
+end)
 
 -- sondeo periódico (v1.7/v1.8): chat cada 20s + sync silencioso cada 60s,
 -- solo mientras el panel esté abierto.
