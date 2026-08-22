@@ -4,9 +4,10 @@ Lecciones verificadas al llevar la caja `cmd_000001` (crate 8x6x8, 20 piezas)
 a Roblox Studio como malla importada. Aplican a cualquier objeto futuro que el
 agente genere para importar.
 
-**Handoff de la conversacion completa**: pagina «Handoff — Caja 3D Roblox
-(sesión 2026-08-22)» en el workspace de Notion del usuario. Leerla primero al
-continuar este trabajo en un chat nuevo.
+**Handoff de la conversacion completa**: `memory/HANDOFF_2026-08-22.md` en
+este repo (espejo: pagina «Handoff — Caja 3D Roblox (sesión 2026-08-22)» en
+el workspace de Notion del usuario). Leerlo primero al continuar este trabajo
+en un chat nuevo.
 
 ## Lo que NO funciona
 
