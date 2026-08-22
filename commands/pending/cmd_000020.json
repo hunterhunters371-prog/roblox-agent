@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "id": "cmd_000020",
+  "title": "S1 · Estructura base Delivery60",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T22:38:00Z",
+  "request": "Sprint 1, comando 1/8 del plan de desarrollo de DELIVERY: 60 SECONDS (Notion: Plan de desarrollo §6). Crea el namespace Delivery60 en ServerScriptService, ReplicatedStorage, Workspace y StarterGui, los remotes de comunicación, el valor de versión y verifica con inspect_tree.",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    { "op": "ensure_instance", "id": "op_1", "path": "ServerScriptService.Delivery60", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_2", "path": "ReplicatedStorage.Delivery60", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_3", "path": "ReplicatedStorage.Delivery60.Modifiers", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_4", "path": "ReplicatedStorage.Delivery60.Data", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_5", "path": "ReplicatedStorage.Delivery60.Remotes", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_6", "path": "ReplicatedStorage.Delivery60.Shared", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_7", "path": "ReplicatedStorage.Delivery60.Remotes.DeliveryEvent", "class": "RemoteEvent" },
+    { "op": "ensure_instance", "id": "op_8", "path": "ReplicatedStorage.Delivery60.Remotes.DeliveryQuery", "class": "RemoteFunction" },
+    { "op": "ensure_instance", "id": "op_9", "path": "ReplicatedStorage.Delivery60.GameVersion", "class": "StringValue", "properties": { "Value": "0.1.0-S1" } },
+    { "op": "ensure_instance", "id": "op_10", "path": "Workspace.Delivery60", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_11", "path": "Workspace.Delivery60.City", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_12", "path": "Workspace.Delivery60.Destinations", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_13", "path": "Workspace.Delivery60.HQ", "class": "Folder" },
+    { "op": "ensure_instance", "id": "op_14", "path": "StarterGui.Delivery60HUD", "class": "ScreenGui", "properties": { "ResetOnSpawn": false, "DisplayOrder": 10 } },
+    { "op": "inspect_tree", "id": "op_15", "path": "ReplicatedStorage.Delivery60", "max_depth": 3 },
+    { "op": "inspect_tree", "id": "op_16", "path": "Workspace.Delivery60", "max_depth": 2 },
+    { "op": "inspect_tree", "id": "op_17", "path": "ServerScriptService.Delivery60", "max_depth": 2 },
+    { "op": "inspect_tree", "id": "op_18", "path": "StarterGui.Delivery60HUD", "max_depth": 1 }
+  ]
+}
