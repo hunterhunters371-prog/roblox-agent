@@ -1,0 +1,39 @@
+{
+  "version": "0.1",
+  "id": "cmd_000018",
+  "title": "Caja móvil que brilla al moverla",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T19:36:00Z",
+  "request": "agrega una caja que el jugador pueda mover, si el jugador lo mueve este debe brillar (chat)",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "ensure_instance",
+      "id": "op_1",
+      "path": "Workspace.CajaMovil",
+      "class": "Part",
+      "properties": {
+        "Size": [4, 4, 4],
+        "Position": [-38.5, 12, 380],
+        "Color": [226, 155, 64],
+        "Material": "Plastic",
+        "Anchored": false
+      }
+    },
+    {
+      "op": "ensure_instance",
+      "id": "op_2",
+      "path": "Workspace.CajaMovil.BrilloAlMover",
+      "class": "Script"
+    },
+    {
+      "op": "set_script_source",
+      "id": "op_3",
+      "path": "Workspace.CajaMovil.BrilloAlMover",
+      "source": "-- CajaMovil: brilla mientras un jugador la mueve (empujones físicos en Play).\nlocal part = script.Parent\n\nlocal luz = Instance.new(\"PointLight\")\nluz.Name = \"Brillo\"\nluz.Enabled = false\nluz.Color = Color3.fromRGB(255, 214, 90)\nluz.Range = 14\nluz.Brightness = 2.5\nluz.Parent = part\n\nlocal materialOriginal = part.Material\nlocal colorOriginal = part.Color\nlocal ultimaPos = part.Position\nlocal apagado = nil\n\nlocal function brillar()\n\tpart.Material = Enum.Material.Neon\n\tpart.Color = Color3.fromRGB(255, 235, 120)\n\tluz.Enabled = true\nend\n\nlocal function apagar()\n\tpart.Material = materialOriginal\n\tpart.Color = colorOriginal\n\tluz.Enabled = false\nend\n\nwhile true do\n\tif (part.Position - ultimaPos).Magnitude > 0.05 then\n\t\tultimaPos = part.Position\n\t\tbrillar()\n\t\tif apagado then\n\t\t\ttask.cancel(apagado)\n\t\tend\n\t\tapagado = task.delay(1.5, apagar)\n\tend\n\ttask.wait(0.1)\nend"
+    }
+  ]
+}
