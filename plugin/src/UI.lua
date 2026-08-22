@@ -9,11 +9,12 @@
 --        en el chat explicando cómo pedir cosas al agente.
 -- v1.9: botón "🧬 Replicar" (captura el plano rejugable de la selección).
 -- v1.9.1: chip de versión (el comportamiento de modo Play vive en init.server.lua).
+-- v1.9.2: chip de versión (el detalle de qué se agregó vive en Ops/init).
 
 local UI = {}
 UI.__index = UI
 
-local VERSION = "v1.9.1"
+local VERSION = "v1.9.2"
 
 -- paleta (oscura, tipo Notion)
 local COLOR_BG = Color3.fromRGB(25, 25, 25)
