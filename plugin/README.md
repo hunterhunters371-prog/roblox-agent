@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.9** — **réplica de instancias**: nueva op `capture_spec` (captura un *plano* rejugable del objeto señalado: clase, nombre, propiedades clave, transformación, atributos, hijos recursivos, código de scripts y soldaduras internas Weld/Motor6D/WeldConstraint) y nueva op `replicate_instance` (lo reconstruye desde un plano `spec` o desde un objeto en vivo `path`; con `count` (1–50), `offset` y `step` para series; idempotente por nombre: lo que ya existe en el destino se omite). Botón **🧬 Replicar**: convierte tu selección en un plano y lo sube a `snapshots/plan_<ts>.json`, listo para rejugar. Además: `decodeValue` acepta ahora `UDim2`, `UDim`, `Vector2` y `NumberRange` (las GUI y las partículas replican mejor), los `MeshPart` conservan su malla vía `AssetService:CreateMeshPartAsync`, y la lista blanca del plugin queda sincronizada con `allowed_classes.json` (`ProximityPrompt` faltaba; se añade `Bone` para rigs).
+
 **v1.8** — más amigable y con más contexto del entorno: botón **🗺 Entorno** (sube `snapshots/entorno_<ts>.json`: servicios con sus hijos, árbol ligero del Workspace, iluminación, nº de jugadores), el hover muestra **tamaño o nº de hijos** además de clase y path, **saludo de bienvenida** en el chat explicando cómo pedir cosas, y **auto-sync silencioso cada 60 s** (y tras cada respuesta del agente): si pides «agrega una caja» por el chat, el comando que prepara el agente aparece solo en COMANDOS para que pulses Ejecutar.
 
 **v1.7** — **💬 Chat con el agente**: pestaña CHAT junto a COMANDOS. Escribes tu mensaje (Enter o botón Enviar) → sube a `chat/inbox/`; el plugin revisa `chat/outbox/` cada 20 s y muestra las respuestas del agente en burbujas. Incluye lo de la v1.6: **barra de progreso** durante la ejecución, **registro con colores** (✓ verde / ERROR rojo), efecto de presión en los botones y la fila del cursor con la **clase** del objeto.
@@ -52,6 +54,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 8. **⬆ Código** (v1.4) — sube TODOS los scripts del juego en un click, un archivo por servicio en `snapshots/codigo_<Servicio>_<timestamp>.json`.
 9. **🗺 Entorno** (v1.8) — sube un mapa del place a `snapshots/entorno_<timestamp>.json` para que el agente entienda dónde está parado (servicios, árbol del Workspace, iluminación).
 10. **💬 Chat** (v1.7) — pestaña CHAT: escribe al agente (Enter o Enviar). Tu mensaje sube a `chat/inbox/`; las respuestas del agente aparecen solas (sondeo cada 20 s desde `chat/outbox/`). Como el agente no está siempre activo, avísale en Notion («lee el chat») para que responda. Si pides construir algo, el comando aparecerá en COMANDOS (se sincroniza solo) y pulsas **Ejecutar**.
+11. **🧬 Replicar** (v1.9) — con algo seleccionado, sube su plano rejugable a `snapshots/plan_<timestamp>.json` (geometría, propiedades, GUI, scripts y soldaduras internas). Luego pídele al agente algo como «replica el último plano 3 veces, separadas 20 studs» y pulsa **Ejecutar** cuando el comando aparezca en COMANDOS. El agente también puede capturar planos él mismo con la op `capture_spec`.
 
 ## Qué NO hace (por diseño)
 
@@ -62,3 +65,4 @@ Publicar el juego, ejecutar código arbitrario (`loadstring`), HTTP a dominios n
 - Los checkpoints se escriben en GitHub tras cada operación (un commit por operación). En v0.2 se evaluará batching con la Git Trees API.
 - Un comando que termina con errores va a `failed/`; la reanudación desde `failed/` no está soportada en el MVP (vuelve a enviarlo como comando nuevo).
 - Desde la v1.2, todo lo que el plugin crea queda etiquetado con el atributo `_RBX_Bridge` (id del comando) — útil para distinguirlo de lo que ya estaba en el juego.
+- Desde la v1.9, `replicate_instance` reporta en su detalle las propiedades no aplicadas y las clases fuera de la lista blanca omitidas del árbol replicado (la réplica no se aborta por una pieza menor).
