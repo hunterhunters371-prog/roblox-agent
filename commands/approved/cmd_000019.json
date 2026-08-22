@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "id": "cmd_000019",
+  "title": "Paquete 3D tipo Amazon con líneas amarillas en los bordes",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T19:39:00Z",
+  "request": "genera un modelo 3d la caja (tipo amazon) con líneas amarillas en los bordes (chat)",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "ensure_instance",
+      "id": "op_1",
+      "path": "Workspace.CajaAmazon",
+      "class": "Model"
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_2",
+      "parts": [
+        { "class": "Part", "name": "Body", "parent": "Workspace.CajaAmazon", "size": [4, 3, 4], "position": [-38.5, 10, 380], "properties": { "Color": [154, 108, 60], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Edge_V1", "parent": "Workspace.CajaAmazon", "size": [0.08, 3.1, 0.08], "position": [-40.5, 10, 378], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_V2", "parent": "Workspace.CajaAmazon", "size": [0.08, 3.1, 0.08], "position": [-40.5, 10, 382], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_V3", "parent": "Workspace.CajaAmazon", "size": [0.08, 3.1, 0.08], "position": [-36.5, 10, 378], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_V4", "parent": "Workspace.CajaAmazon", "size": [0.08, 3.1, 0.08], "position": [-36.5, 10, 382], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_T1", "parent": "Workspace.CajaAmazon", "size": [4.16, 0.08, 0.08], "position": [-38.5, 11.5, 378], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_T2", "parent": "Workspace.CajaAmazon", "size": [4.16, 0.08, 0.08], "position": [-38.5, 11.5, 382], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_T3", "parent": "Workspace.CajaAmazon", "size": [0.08, 0.08, 4.16], "position": [-40.5, 11.5, 380], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_T4", "parent": "Workspace.CajaAmazon", "size": [0.08, 0.08, 4.16], "position": [-36.5, 11.5, 380], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_B1", "parent": "Workspace.CajaAmazon", "size": [4.16, 0.08, 0.08], "position": [-38.5, 8.5, 378], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_B2", "parent": "Workspace.CajaAmazon", "size": [4.16, 0.08, 0.08], "position": [-38.5, 8.5, 382], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_B3", "parent": "Workspace.CajaAmazon", "size": [0.08, 0.08, 4.16], "position": [-40.5, 8.5, 380], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Edge_B4", "parent": "Workspace.CajaAmazon", "size": [0.08, 0.08, 4.16], "position": [-36.5, 8.5, 380], "properties": { "Color": [255, 200, 40], "Material": "Neon" } },
+        { "class": "Part", "name": "Tape", "parent": "Workspace.CajaAmazon", "size": [4.16, 0.1, 0.9], "position": [-38.5, 11.52, 380], "properties": { "Color": [255, 200, 40], "Material": "Neon" } }
+      ]
+    }
+  ]
+}
