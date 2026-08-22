@@ -8,6 +8,8 @@
 -- planos u objetos en vivo, 1-50 copias con offset/step); decodeValue acepta ahora
 -- UDim2, UDim, Vector2 y NumberRange (necesario para replicar GUI y partículas), y los
 -- MeshPart conservan su malla vía AssetService:CreateMeshPartAsync.
+-- v1.9.2: replicate_instance devuelve data.copias (nombre, path, nº de nodos y
+-- scripts de cada copia) para que el registro señale qué objeto/script se agregó.
 
 local ServerStorage = game:GetService("ServerStorage")
 local AssetService = game:GetService("AssetService")
@@ -797,6 +799,11 @@ local function construirNodo(node, parent, state, nameOverride)
 		end
 		instance = created
 	end
+	-- v1.9.2: contar lo agregado para el reporte (nodos y scripts)
+	state.nodes += 1
+	if esScript(instance) then
+		table.insert(state.scripts, node.name or node.class)
+	end
 	instance.Name = nameOverride or node.name or node.class
 	if node.nid then
 		state.instOf[node.nid] = instance
@@ -867,6 +874,7 @@ function Ops.replicate_instance(op, cmdId)
 	local created, skipped = 0, 0
 	local warnings = 0
 	local skippedClasses = {}
+	local copias = {} -- v1.9.2: qué se agregó en cada copia
 	for i = 1, count do
 		local baseName = op.new_name or spec.name or spec.class
 		local finalName = count == 1 and baseName or (baseName .. "_" .. i)
@@ -877,7 +885,7 @@ function Ops.replicate_instance(op, cmdId)
 			if step then
 				shift = offset + step * (i - 1)
 			end
-			local state = { instOf = {}, joints = {}, warnings = 0, skippedClasses = {} }
+			local state = { instOf = {}, joints = {}, warnings = 0, skippedClasses = {}, nodes = 0, scripts = {} }
 			local root = construirNodo(spec, parent, state, finalName)
 			if root then
 				-- PrimaryPart del Model raíz (lo usa PivotTo como referencia)
@@ -914,6 +922,12 @@ function Ops.replicate_instance(op, cmdId)
 				end
 				marcar(root, cmdId)
 				created += 1
+				table.insert(copias, {
+					nombre = finalName,
+					path = root:GetFullName(),
+					nodos = state.nodes,
+					scripts = state.scripts,
+				})
 			else
 				skipped += 1
 			end
@@ -935,6 +949,14 @@ function Ops.replicate_instance(op, cmdId)
 	if #lista > 0 then
 		table.sort(lista)
 		detail ..= "; clases fuera de la lista blanca omitidas: " .. table.concat(lista, ", ")
+	end
+	-- v1.9.2: el resultado detalla qué objeto o script se agregó por copia
+	if #copias > 0 then
+		local data = { copias = copias, advertencias = warnings }
+		if #lista > 0 then
+			data.clases_omitidas = lista
+		end
+		return created > 0 and "created" or "skipped", detail, data
 	end
 	return created > 0 and "created" or "skipped", detail
 end
