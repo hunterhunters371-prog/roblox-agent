@@ -84,6 +84,35 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["op", "id", "path"],
+          "properties": {
+            "op": { "const": "capture_spec" },
+            "id": { "$ref": "#/$defs/opId" },
+            "path": { "$ref": "#/$defs/path" },
+            "max_depth": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "include_scripts": { "type": "boolean", "default": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "id", "new_parent"],
+          "description": "Replica un objeto: desde un plano 'spec' (capturado con capture_spec o con el botón Replicar) o desde un objeto en vivo con 'path'. Al menos uno de 'path' o 'spec' es obligatorio (lo exige el validador del plugin).",
+          "properties": {
+            "op": { "const": "replicate_instance" },
+            "id": { "$ref": "#/$defs/opId" },
+            "path": { "$ref": "#/$defs/path" },
+            "spec": { "type": "object" },
+            "new_parent": { "$ref": "#/$defs/path" },
+            "new_name": { "type": "string", "minLength": 1 },
+            "offset": { "$ref": "#/$defs/vector3" },
+            "count": { "type": "integer", "minimum": 1, "maximum": 50 },
+            "step": { "$ref": "#/$defs/vector3" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["op", "id", "path", "class"],
           "properties": {
             "op": { "const": "ensure_instance" },

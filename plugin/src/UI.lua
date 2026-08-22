@@ -7,11 +7,15 @@
 -- v1.7: pestañas COMANDOS / 💬 CHAT — burbujas de conversación con el agente.
 -- v1.8: botón "🗺 Entorno", hover con tamaño/hijos del objeto, saludo de bienvenida
 --        en el chat explicando cómo pedir cosas al agente.
+-- v1.9: botón "🧬 Replicar" (captura el plano rejugable de la selección).
+-- v1.9.1: chip de versión (el comportamiento de modo Play vive en init.server.lua).
+-- v1.9.2: chip de versión (el detalle de qué se agregó vive en Ops/init).
+-- v1.9.3: chip de versión (token robusto vive en init/GitHub).
 
 local UI = {}
 UI.__index = UI
 
-local VERSION = "v1.8"
+local VERSION = "v1.9.3"
 
 -- paleta (oscura, tipo Notion)
 local COLOR_BG = Color3.fromRGB(25, 25, 25)
@@ -27,6 +31,7 @@ local COLOR_NEUTRAL = Color3.fromRGB(82, 82, 82)
 local COLOR_HOVER = Color3.fromRGB(41, 196, 226) -- cian
 local COLOR_CODE = Color3.fromRGB(144, 101, 196) -- violeta
 local COLOR_MAP = Color3.fromRGB(62, 132, 128) -- verde azulado
+local COLOR_REPLICA = Color3.fromRGB(171, 84, 150) -- magenta (v1.9)
 local COLOR_LOG_BG = Color3.fromRGB(20, 20, 20)
 local COLOR_LOG_TEXT = Color3.fromRGB(168, 215, 168)
 local COLOR_BUBBLE_ME = Color3.fromRGB(43, 78, 120) -- mis mensajes
@@ -40,7 +45,7 @@ local STATE_COLORS = {
 }
 
 local SALUDO_CHAT =
-	"¡Hola! 👋 Soy tu agente. Escríbeme aquí como si hablaras conmigo: «agrega una caja», «pon más decoración», «sube el código del juego»… Tu mensaje viaja por GitHub; avísame en Notion con «lee el chat» y te respondo aquí mismo. Si pides construir algo, te dejo el comando listo en la pestaña COMANDOS para que pulses Ejecutar."
+	"¡Hola! 👋 Soy tu agente. Escríbeme aquí como si hablaras conmigo: «agrega una caja», «pon más decoración», «replica 3 veces lo que tengo seleccionado»… Tu mensaje viaja por GitHub; avísame en Notion con «lee el chat» y te respondo aquí mismo. Si pides construir algo, te dejo el comando listo en la pestaña COMANDOS para que pulses Ejecutar. Con el botón 🧬 Replicar me subes el plano del objeto que señales para copiarlo."
 
 local function escaparRich(texto)
 	return (texto:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
@@ -124,7 +129,7 @@ local function sectionLabel(parent, text, order)
 	return label
 end
 
--- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode, onUploadEnvironment, onSendChat }
+-- handlers: { onSync, onUndo, onSaveToken, onInspectSelection, onUploadCode, onUploadEnvironment, onCapturePlan, onSendChat }
 function UI.new(widget, handlers)
 	local self = setmetatable({}, UI)
 
@@ -268,7 +273,7 @@ function UI.new(widget, handlers)
 	codeButton.Size = UDim2.new(0.334, -4, 1, 0)
 	codeButton.MouseButton1Click:Connect(handlers.onUploadCode)
 
-	-- segunda fila de acciones (v1.8): entorno + deshacer
+	-- segunda fila de acciones (v1.8/v1.9): réplica + entorno + deshacer
 	local actions2 = Instance.new("Frame")
 	actions2.BackgroundTransparency = 1
 	actions2.Size = UDim2.new(1, 0, 0, 24)
@@ -279,14 +284,20 @@ function UI.new(widget, handlers)
 	actions2Layout.Padding = UDim.new(0, 6)
 	actions2Layout.Parent = actions2
 
+	local replicateButton = makeButton(actions2, "🧬 Replicar", COLOR_REPLICA)
+	replicateButton.Size = UDim2.new(0.333, -4, 1, 0)
+	replicateButton.TextSize = 11
+	replicateButton.Font = Enum.Font.Gotham
+	replicateButton.MouseButton1Click:Connect(handlers.onCapturePlan)
+
 	local envButton = makeButton(actions2, "🗺 Entorno", COLOR_MAP)
-	envButton.Size = UDim2.new(0.5, -3, 1, 0)
+	envButton.Size = UDim2.new(0.333, -4, 1, 0)
 	envButton.TextSize = 11
 	envButton.Font = Enum.Font.Gotham
 	envButton.MouseButton1Click:Connect(handlers.onUploadEnvironment)
 
-	local undoButton = makeButton(actions2, "↩ Deshacer último comando", COLOR_NEUTRAL)
-	undoButton.Size = UDim2.new(0.5, -3, 1, 0)
+	local undoButton = makeButton(actions2, "↩ Deshacer", COLOR_NEUTRAL)
+	undoButton.Size = UDim2.new(0.334, -4, 1, 0)
 	undoButton.TextSize = 11
 	undoButton.Font = Enum.Font.Gotham
 	undoButton.MouseButton1Click:Connect(handlers.onUndo)

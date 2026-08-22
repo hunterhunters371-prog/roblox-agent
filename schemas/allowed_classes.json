@@ -1,6 +1,6 @@
 {
   "version": "0.1",
-  "description": "Clases que ensure_instance / create_instance / clone_instance pueden crear. Todo lo demás se rechaza con CLASS_NOT_ALLOWED.",
+  "description": "Clases que ensure_instance / create_instance / clone_instance / replicate_instance pueden crear. Todo lo demás se rechaza con CLASS_NOT_ALLOWED; en replicate_instance la clase no permitida se omite del árbol replicado y se reporta en el detalle.",
   "classes": [
     "Part",
     "WedgePart",
@@ -10,6 +10,7 @@
     "Model",
     "Folder",
     "Configuration",
+    "Bone",
     "Script",
     "ModuleScript",
     "LocalScript",
