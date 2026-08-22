@@ -1,5 +1,7 @@
 -- Validación del lado del plugin: envelope + listas blancas.
 -- Espejo de schemas/allowed_roots.json y schemas/allowed_classes.json (v0.1).
+-- v1.9: ops capture_spec y replicate_instance; CLASSES sincronizado con
+-- allowed_classes.json (faltaba ProximityPrompt) + Bone (rigs de MeshPart).
 
 local Config = require(script.Parent.Config)
 
@@ -18,14 +20,14 @@ local ROOTS = {
 
 local CLASSES = {
 	Part = true, WedgePart = true, CornerWedgePart = true, MeshPart = true, UnionOperation = true,
-	Model = true, Folder = true, Configuration = true,
+	Model = true, Folder = true, Configuration = true, Bone = true,
 	Script = true, ModuleScript = true, LocalScript = true,
 	ScreenGui = true, BillboardGui = true, SurfaceGui = true,
 	Frame = true, ScrollingFrame = true, TextLabel = true, TextButton = true, TextBox = true,
 	ImageLabel = true, ImageButton = true, ViewportFrame = true,
 	UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UIPadding = true,
 	UICorner = true, UIStroke = true, UIGradient = true, UIAspectRatioConstraint = true,
-	SpawnLocation = true, Seat = true,
+	SpawnLocation = true, Seat = true, ProximityPrompt = true,
 	Attachment = true, Weld = true, WeldConstraint = true, Motor6D = true,
 	PointLight = true, SpotLight = true, SurfaceLight = true,
 	ParticleEmitter = true, Trail = true, Beam = true, Fire = true, Smoke = true, Sparkles = true,
@@ -43,6 +45,8 @@ local REQUIRED = {
 	inspect_tree = { "path", "max_depth" },
 	inspect_instance = { "path" },
 	find_instances = { "path" },
+	capture_spec = { "path" },
+	replicate_instance = { "new_parent" },
 	ensure_instance = { "path", "class" },
 	create_instance = { "path", "class" },
 	set_property = { "path", "property", "value" },
@@ -119,6 +123,15 @@ function Validator.ValidateCommand(cmd)
 				end
 			end
 		end
+		-- v1.9: replicate_instance exige una fuente: objeto en vivo (path) o plano (spec)
+		if op.op == "replicate_instance" and op.path == nil and op.spec == nil then
+			return fail("VALIDATION_FAILED", ("replicate_instance (%s) requiere 'path' o 'spec'"):format(op.id))
+		end
+		if op.op == "capture_spec" and op.max_depth ~= nil then
+			if type(op.max_depth) ~= "number" or op.max_depth < 1 or op.max_depth > 10 then
+				return fail("VALIDATION_FAILED", ("capture_spec (%s): max_depth fuera de rango (1-10)"):format(op.id))
+			end
+		end
 		if op.op == "group_instances" then
 			if type(op.paths) ~= "table" or #op.paths == 0 then
 				return fail("VALIDATION_FAILED", "group_instances requiere paths no vacío")
@@ -153,6 +166,7 @@ function Validator.NeedsApproval(cmd)
 end
 
 -- Lo usa Ops.build_from_spec para validar la clase de cada pieza.
+-- v1.9: también lo usa Ops.replicate_instance (construirNodo) para cada nodo del plano.
 function Validator.IsClassAllowed(class)
 	return CLASSES[class] == true
 end

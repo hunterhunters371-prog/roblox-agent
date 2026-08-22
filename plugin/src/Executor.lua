@@ -1,6 +1,7 @@
 -- Ejecutor de comandos: aplica operaciones en orden, reporta progreso
 -- y gestiona waypoints de Undo/Redo (ChangeHistoryService).
 -- v1.2: pasa el id del comando a los handlers (para la etiqueta _RBX_Bridge).
+-- v1.9: capture_spec es de solo lectura (no crea waypoints ni necesita aprobación).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -10,7 +11,10 @@ local Resolver = require(script.Parent.PathResolver)
 local Executor = {}
 
 local function isReadOnly(opName)
-	return opName == "inspect_tree" or opName == "inspect_instance" or opName == "find_instances"
+	return opName == "inspect_tree"
+		or opName == "inspect_instance"
+		or opName == "find_instances"
+		or opName == "capture_spec" -- v1.9
 end
 
 -- Dry-run: valida resolución de paths sin tocar el DataModel.
