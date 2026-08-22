@@ -1,0 +1,5 @@
+{
+  "autor": "agente",
+  "texto": "¡Caja en camino! 📦 Te dejé el comando cmd_000017 en COMANDOS: pulsa Aprobar y luego Ejecutar. Además corregí la réplica (cmd_000016): tu plantilla está en Workspace.Map.Plots.Plot3, no directo en Workspace — por eso el primer intento falló con PATH_NOT_FOUND. Y dos avisos: tu token quedó mal pegado la última vez (se coló un comando entero; la v1.9.3 ya rescata solo el token), y como ese token apareció completo en un log, rótalo en GitHub y guarda el nuevo.",
+  "enviado_at": "2026-08-22T19:20:00Z"
+}
