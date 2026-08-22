@@ -1,0 +1,111 @@
+{
+  "version": "0.1",
+  "id": "cmd_000022",
+  "title": "S1 · Ciudad mínima: calles, HQ y 3 casas-destino",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T22:48:00Z",
+  "request": "Sprint 1, comando 3/8 (Plan §6). Construye la ciudad mínima del MVP apoyándose en la Baseplate del template (superficie y=0): 2 calles, HQ con spawn y pad de recogida, y las casas House_1/2/3 con marcador y ProximityPrompt de entrega. Distancias objetivo desde HQ: 400/560/720 studs (bandas 25/35/45 s; se miden en playtest, Plan §9-3). Todo anclado. Si el place NO tiene Baseplate, avísame y añado suelo propio.",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "build_from_spec",
+      "id": "op_1",
+      "parts": [
+        { "class": "Part", "name": "RoadX", "parent": "Workspace.Delivery60.City", "size": [1120, 0.12, 14], "position": [160, 0.06, 0], "properties": { "Anchored": true, "Color": [50, 50, 50], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "RoadZ", "parent": "Workspace.Delivery60.City", "size": [14, 0.12, 560], "position": [0, 0.06, 280], "properties": { "Anchored": true, "Color": [50, 50, 50], "Material": "SmoothPlastic" } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_2",
+      "parts": [
+        { "class": "Part", "name": "Floor", "parent": "Workspace.Delivery60.HQ", "size": [20, 1, 20], "position": [0, 0.5, 0], "properties": { "Anchored": true, "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallN", "parent": "Workspace.Delivery60.HQ", "size": [20, 8, 1], "position": [0, 5, -9.5], "properties": { "Anchored": true, "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallS", "parent": "Workspace.Delivery60.HQ", "size": [20, 8, 1], "position": [0, 5, 9.5], "properties": { "Anchored": true, "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallW", "parent": "Workspace.Delivery60.HQ", "size": [1, 8, 20], "position": [-9.5, 5, 0], "properties": { "Anchored": true, "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "WallE", "parent": "Workspace.Delivery60.HQ", "size": [1, 8, 20], "position": [9.5, 5, 0], "properties": { "Anchored": true, "Color": [160, 160, 160], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Roof", "parent": "Workspace.Delivery60.HQ", "size": [21, 1, 21], "position": [0, 9.5, 0], "properties": { "Anchored": true, "Color": [200, 80, 40], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "Sign", "parent": "Workspace.Delivery60.HQ", "size": [14, 4, 0.5], "position": [0, 12, 10], "properties": { "Anchored": true, "Color": [255, 165, 0], "Material": "Neon" } },
+        { "class": "Part", "name": "PickupPad", "parent": "Workspace.Delivery60.HQ", "size": [6, 0.2, 6], "position": [0, 0.15, 14], "properties": { "Anchored": true, "CanCollide": false, "Color": [255, 165, 0], "Material": "Neon" } }
+      ]
+    },
+    {
+      "op": "create_instance",
+      "id": "op_3",
+      "path": "Workspace.Delivery60.HQ.SpawnLocation",
+      "class": "SpawnLocation",
+      "properties": { "Position": [0, 1.5, 0], "Size": [6, 1, 6], "Anchored": true, "Neutral": true, "Color": [120, 180, 255] }
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_4",
+      "parts": [
+        { "class": "Part", "name": "House_1_Floor", "parent": "Workspace.Delivery60.Destinations", "size": [12, 1, 12], "position": [-400, 0.5, 0], "properties": { "Anchored": true, "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallN", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [-400, 4, -5.5], "properties": { "Anchored": true, "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallS", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [-400, 4, 5.5], "properties": { "Anchored": true, "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallW", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [-405.5, 4, 0], "properties": { "Anchored": true, "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_WallE", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [-394.5, 4, 0], "properties": { "Anchored": true, "Color": [222, 184, 135], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_Roof", "parent": "Workspace.Delivery60.Destinations", "size": [13, 1, 13], "position": [-400, 7.5, 0], "properties": { "Anchored": true, "Color": [140, 90, 50], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_1_Marker", "parent": "Workspace.Delivery60.Destinations", "size": [4, 0.2, 4], "position": [-400, 0.15, 8], "properties": { "Anchored": true, "CanCollide": false, "Color": [255, 220, 40], "Material": "Neon" } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_5",
+      "parts": [
+        { "class": "Part", "name": "House_2_Floor", "parent": "Workspace.Delivery60.Destinations", "size": [12, 1, 12], "position": [0, 0.5, 560], "properties": { "Anchored": true, "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallN", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [0, 4, 554.5], "properties": { "Anchored": true, "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallS", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [0, 4, 565.5], "properties": { "Anchored": true, "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallW", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [-5.5, 4, 560], "properties": { "Anchored": true, "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_WallE", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [5.5, 4, 560], "properties": { "Anchored": true, "Color": [176, 196, 222], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_Roof", "parent": "Workspace.Delivery60.Destinations", "size": [13, 1, 13], "position": [0, 7.5, 560], "properties": { "Anchored": true, "Color": [90, 110, 140], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_2_Marker", "parent": "Workspace.Delivery60.Destinations", "size": [4, 0.2, 4], "position": [0, 0.15, 568], "properties": { "Anchored": true, "CanCollide": false, "Color": [255, 220, 40], "Material": "Neon" } }
+      ]
+    },
+    {
+      "op": "build_from_spec",
+      "id": "op_6",
+      "parts": [
+        { "class": "Part", "name": "House_3_Floor", "parent": "Workspace.Delivery60.Destinations", "size": [12, 1, 12], "position": [720, 0.5, 0], "properties": { "Anchored": true, "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallN", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [720, 4, -5.5], "properties": { "Anchored": true, "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallS", "parent": "Workspace.Delivery60.Destinations", "size": [12, 6, 1], "position": [720, 4, 5.5], "properties": { "Anchored": true, "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallW", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [714.5, 4, 0], "properties": { "Anchored": true, "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_WallE", "parent": "Workspace.Delivery60.Destinations", "size": [1, 6, 12], "position": [725.5, 4, 0], "properties": { "Anchored": true, "Color": [205, 133, 63], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_Roof", "parent": "Workspace.Delivery60.Destinations", "size": [13, 1, 13], "position": [720, 7.5, 0], "properties": { "Anchored": true, "Color": [120, 70, 30], "Material": "SmoothPlastic" } },
+        { "class": "Part", "name": "House_3_Marker", "parent": "Workspace.Delivery60.Destinations", "size": [4, 0.2, 4], "position": [720, 0.15, 8], "properties": { "Anchored": true, "CanCollide": false, "Color": [255, 220, 40], "Material": "Neon" } }
+      ]
+    },
+    {
+      "op": "create_instance",
+      "id": "op_7",
+      "path": "Workspace.Delivery60.HQ.PickupPad.PickupPrompt",
+      "class": "ProximityPrompt",
+      "properties": { "ActionText": "Pick up", "ObjectText": "DELIVERY HQ", "HoldDuration": 0.3, "MaxActivationDistance": 12 }
+    },
+    {
+      "op": "create_instance",
+      "id": "op_8",
+      "path": "Workspace.Delivery60.Destinations.House_1_Marker.DeliveryPrompt",
+      "class": "ProximityPrompt",
+      "properties": { "ActionText": "Deliver", "ObjectText": "House #1", "HoldDuration": 0.3, "MaxActivationDistance": 12 }
+    },
+    {
+      "op": "create_instance",
+      "id": "op_9",
+      "path": "Workspace.Delivery60.Destinations.House_2_Marker.DeliveryPrompt",
+      "class": "ProximityPrompt",
+      "properties": { "ActionText": "Deliver", "ObjectText": "House #2", "HoldDuration": 0.3, "MaxActivationDistance": 12 }
+    },
+    {
+      "op": "create_instance",
+      "id": "op_10",
+      "path": "Workspace.Delivery60.Destinations.House_3_Marker.DeliveryPrompt",
+      "class": "ProximityPrompt",
+      "properties": { "ActionText": "Deliver", "ObjectText": "House #3", "HoldDuration": 0.3, "MaxActivationDistance": 12 }
+    },
+    { "op": "inspect_tree", "id": "op_11", "path": "Workspace.Delivery60", "max_depth": 3 }
+  ]
+}
