@@ -49,11 +49,28 @@ Diagnosticadas de las capturas del usuario tras importar la v2:
    largas y oscuras. Correccion: lineas a 1 por stud con factor 0,7, vetas de
    10-40 px con factor 0,82-0,95, variacion por tabla ±6.
 
+## Correcciones v3 -> v4 (misma sesion)
+
+Diagnosticadas de las capturas del usuario tras importar la v3:
+
+1. **Parpadeo de la textura al alejarse o en angulo rasante**: detalle de
+   alta frecuencia (cepillado del metal cada 3 px, vetas finas) hace moire
+   al minificarse. Correccion: eliminar lineas finas; solo rasgos grandes y
+   suaves (manchas de 24-64 px en metal, separacion de tablas de 3 px a
+   1/stud en madera).
+2. **Lineas diagonales visibles en las caras grandes**: el importador suelda
+   los vertices duplicados y suaviza normales por su cuenta; las divisiones
+   de sombreado plano del archivo se pierden y la triangulacion se asoma
+   junto al bisel. No controlable desde el archivo; mitigado reduciendo el
+   bisel de 0,06 a 0,04 studs.
+3. Madera lavada por sobre-correccion de contraste: separacion de tablas al
+   60% del color base.
+
 Estas lecciones tambien quedaron integradas en el rol `modelador-3d` del repo
 maximizador-ia, seccion «Lecciones verificadas: exportar mallas a Roblox
 Studio».
 
-Verificacion pendiente: render de la v3 en Studio (importacion del usuario).
+Verificacion pendiente: render de la v4 en Studio (importacion del usuario).
 
 ## Estado del place «Experiencia sin título»
 
@@ -65,5 +82,5 @@ Verificacion pendiente: render de la v3 en Studio (importacion del usuario).
 
 - Comando del puente: `commands/pending/cmd_000001.json`.
 - Generador de mallas usado en la sesion: script Python en el sandbox del
-  agente (`gen_caja_glb.py`): caja con bisel 0,06 studs, normales corregidas
+  agente (`gen_caja_glb.py`): caja con bisel 0,04 studs, normales corregidas
   por chequeo de winding (Newell), abanico desde centroide, atlas con PIL.
