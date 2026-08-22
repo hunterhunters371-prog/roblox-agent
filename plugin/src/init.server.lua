@@ -14,6 +14,9 @@
 -- v1.8: botón "🗺 Entorno" (mapa del place: servicios, árbol ligero del Workspace,
 --        iluminación) + hover con tamaño/hijos + auto-sync silencioso cada 60s y tras
 --        cada respuesta del agente (los comandos pedidos por chat aparecen solos).
+-- v1.9: botón "🧬 Replicar" — la selección se captura como plano rejugable
+--        (snapshots/plan_<ts>.json) para la nueva op replicate_instance; el plano
+--        incluye geometría, propiedades, GUI, scripts y soldaduras internas.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -25,6 +28,7 @@ local Config = require(script.Config)
 local GitHub = require(script.GitHub)
 local Validator = require(script.Validator)
 local Executor = require(script.Executor)
+local Ops = require(script.Ops)
 local UI = require(script.UI)
 
 -- ---------- toolbar + widget ----------
@@ -619,6 +623,56 @@ local function doSubirEntorno()
 	setStatusReady()
 end
 
+-- ---------- plano de réplica de la selección (v1.9) ----------
+
+local function contarNodos(plano)
+	local n = 1
+	for _, hijo in ipairs(plano.children or {}) do
+		n += contarNodos(hijo)
+	end
+	return n
+end
+
+-- Captura la selección como plano rejugable (Ops.CaptureBlueprint) y lo sube a
+-- snapshots/plan_<ts>.json. El agente lo rejuega con replicate_instance: pasa el
+-- plano como 'spec', o usa 'path' con el objeto en vivo. Opciones: new_parent
+-- (obligatorio), new_name, offset, count (1-50) y step.
+local function doCapturarPlan()
+	if not guardGithub() then
+		return
+	end
+	local seleccion = Selection:Get()
+	if #seleccion == 0 then
+		ui:Log("Selección vacía — selecciona lo que quieres replicar (mouse o Explorer).")
+		return
+	end
+	ui:SetStatus("capturando plano…", "busy")
+	local ok, err = pcall(function()
+		local planos = {}
+		local nodos = 0
+		for _, inst in ipairs(seleccion) do
+			local plano = Ops.CaptureBlueprint(inst, 10, true)
+			table.insert(planos, plano)
+			nodos += contarNodos(plano)
+		end
+		local nombre = "plan_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
+		github:WriteJson(Config.PATHS.snapshots .. "/" .. nombre, {
+			tipo = "plan_replica",
+			capturado_at = nowIso(),
+			play_mode = RunService:IsRunning(),
+			total = #planos,
+			nodos = nodos,
+			instrucciones = "Rejugable con la op replicate_instance: pasa cada plano como 'spec', o usa 'path' con el objeto en vivo. Opciones: new_parent (obligatorio), new_name, offset, count (1-50), step.",
+			planos = planos,
+		}, ("snapshot: plano de réplica (%d raíz/raíces, %d nodos)"):format(#planos, nodos))
+		ui:Log(("✓ Plano subido: snapshots/%s — %d raíz/raíces, %d nodos"):format(nombre, #planos, nodos))
+	end)
+	if not ok then
+		reportError("capturar plano", err)
+	end
+	setStatusReady()
+end
+
 -- ---------- chat con el agente (v1.7) ----------
 -- Canal: chat/inbox/ (mensajes del usuario) ↔ chat/outbox/ (respuestas del agente).
 -- El agente no está siempre activo: escribe aquí y avísale en Notion («lee el chat»);
@@ -850,6 +904,7 @@ ui = UI.new(widget, {
 	onInspectSelection = doInspeccionarSeleccion,
 	onUploadCode = doSubirCodigo,
 	onUploadEnvironment = doSubirEntorno,
+	onCapturePlan = doCapturarPlan, -- v1.9
 	onSendChat = doEnviarChat,
 })
 
