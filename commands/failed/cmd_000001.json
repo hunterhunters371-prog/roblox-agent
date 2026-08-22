@@ -1,0 +1,23 @@
+{
+  "version": "0.1",
+  "id": "cmd_000001",
+  "title": "Replicar PlotTemplate ×5 en fila",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T18:53:30Z",
+  "request": "Replica el PlotTemplate 5 veces en fila (elegido en Notion). Paso de 100 studs en X (la parcela mide ~90 de ancho, quedan ~10 de margen).",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "replicate_instance",
+      "id": "op_1",
+      "path": "Workspace.PlotTemplate",
+      "new_parent": "Workspace",
+      "new_name": "PlotTemplate",
+      "count": 5,
+      "step": [100, 0, 0]
+    }
+  ]
+}
