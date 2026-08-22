@@ -1,0 +1,23 @@
+{
+  "version": "0.1",
+  "id": "cmd_000016",
+  "title": "Replicar Plot3 ×5 en fila (ruta corregida)",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T19:20:00Z",
+  "request": "Replica el PlotTemplate 5 veces en fila. Corrige cmd_000001 (PATH_NOT_FOUND): la ruta real del objeto es Workspace.Map.Plots.Plot3, no Workspace.PlotTemplate.",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "replicate_instance",
+      "id": "op_1",
+      "path": "Workspace.Map.Plots.Plot3",
+      "new_parent": "Workspace.Map.Plots",
+      "new_name": "Plot3Copia",
+      "count": 5,
+      "step": [100, 0, 0]
+    }
+  ]
+}
