@@ -2,6 +2,8 @@
 
 Plugin ejecutor del protocolo RBX Bridge v0.1. Lee comandos declarativos del repo, los valida contra las listas blancas y los aplica sobre el árbol de instancias con las APIs nativas de Studio. **No usa ni consume la IA nativa de Roblox Studio.**
 
+**v1.9.3** — **token a prueba de accidentes**: la caja del token rescata solo el token (`github_pat_…` / `ghp_…`) aunque pegues un comando entero por error, lo **prueba contra el repo al guardarlo** (✓ o aviso con el motivo), y el sync ya no disimula un token roto con «0 comandos» — el error real aparece en el registro en vez de ocultarse.
+
 **v1.9.2** — **la réplica señala qué se agregó**: al ejecutar `replicate_instance`, el registro lista cada copia con su nombre, path, nº de nodos y scripts (p. ej. `✓ agregado PlotTemplate_1 → Workspace.PlotTemplate_1 (882 nodos · scripts: AP, dialogueScript)`), y el `result.json` del comando trae `data.copias` con ese detalle auditable. El botón 🧬 Replicar ahora también cuenta los scripts incluidos en el plano.
 
 **v1.9.1** — correcciones para el **modo Play**: **captura por cursor** (si la selección está vacía — en Play el click sobre el mundo no selecciona — los botones 🔍 Selección y 🧬 Replicar usan el objeto resaltado bajo el cursor, incluidos los objetos creados por código durante la simulación) y **cola local de snapshots**: cuando Studio bloquea el HTTP del plugin en Play (`Http requests can only be executed by game server`), las capturas no se pierden — quedan en cola y suben solas a `snapshots/` al detener la simulación o en el próximo Sync. El mensaje de error ahora explica la causa en lugar de repetirse por servicio.
@@ -49,7 +51,7 @@ Copia `RobloxAgentBridge.rbxm` a la carpeta de plugins de Studio (Plugins → **
 ## Uso
 
 1. Abre el place de tu juego y pulsa **Agent Bridge** en la toolbar.
-2. Pega el token y **Guardar** (se almacena local con `plugin:SetSetting`, nunca en el código).
+2. Pega el token y **Guardar** (se almacena local con `plugin:SetSetting`, nunca en el código). Desde la v1.9.3 se prueba al guardarlo y se rescata si pegaste un comando por accidente.
 3. **⟳ Sync** — trae los comandos de `commands/pending/`, `approved/` y `processing/` (también se sincroniza solo cada 60 s mientras el panel esté abierto).
 4. **Aprobar** mueve el comando a `approved/`. **Ejecutar** lo aplica sobre Studio.
 5. Si Studio se cierra a mitad, al volver aparece como `processing` con su progreso: **Continuar** retoma desde la última operación completada.
@@ -72,3 +74,4 @@ Publicar el juego, ejecutar código arbitrario (`loadstring`), HTTP a dominios n
 - Desde la v1.9, `replicate_instance` reporta en su detalle las propiedades no aplicadas y las clases fuera de la lista blanca omitidas del árbol replicado (la réplica no se aborta por una pieza menor).
 - Desde la v1.9.1, en modo Play las capturas quedan en cola local y suben solas al detener la simulación (Studio bloquea el HTTP del plugin durante Play).
 - Desde la v1.9.2, el resultado de `replicate_instance` incluye `data.copias`: nombre, path, nº de nodos y scripts de cada copia agregada.
+- Desde la v1.9.3, el token se rescata de pegados accidentales, se prueba al guardar, y un sync fallido muestra el error real en el registro.

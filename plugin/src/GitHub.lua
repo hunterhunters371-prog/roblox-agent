@@ -1,5 +1,7 @@
 -- Cliente mínimo de la API REST de GitHub para el bridge.
 -- Solo opera sobre el repo configurado en Config.lua.
+-- v1.9.3: ListFiles propaga errores reales (antes una carpeta vacía ocultaba
+-- tokens rotos: el sync decía "0 comandos" como si todo fuera bien).
 
 local HttpService = game:GetService("HttpService")
 
@@ -48,11 +50,20 @@ function GitHub:_request(method, path, body)
 end
 
 -- Lista archivos de una carpeta (omite .gitkeep y similares). {} si no existe.
+-- v1.9.3: un error real (token inválido, HTTP bloqueado en Play) se propaga en vez
+-- de disfrazarse de carpeta vacía — así el sync lo muestra en vez de decir "0 comandos".
 function GitHub:ListFiles(folder)
 	local ok, result = pcall(function()
 		return self:_request("GET", "/contents/" .. folder .. "?ref=" .. Config.BRANCH)
 	end)
-	if not ok or type(result) ~= "table" then
+	if not ok then
+		local msg = tostring(type(result) == "table" and result.message or result)
+		if msg:find("404") then
+			return {} -- la carpeta no existe todavía
+		end
+		error(result, 0) -- error real: que se vea en el registro
+	end
+	if type(result) ~= "table" then
 		return {}
 	end
 	local files = {}

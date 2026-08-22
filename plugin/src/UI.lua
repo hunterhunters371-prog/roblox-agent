@@ -10,11 +10,12 @@
 -- v1.9: botón "🧬 Replicar" (captura el plano rejugable de la selección).
 -- v1.9.1: chip de versión (el comportamiento de modo Play vive en init.server.lua).
 -- v1.9.2: chip de versión (el detalle de qué se agregó vive en Ops/init).
+-- v1.9.3: chip de versión (token robusto vive en init/GitHub).
 
 local UI = {}
 UI.__index = UI
 
-local VERSION = "v1.9.2"
+local VERSION = "v1.9.3"
 
 -- paleta (oscura, tipo Notion)
 local COLOR_BG = Color3.fromRGB(25, 25, 25)
