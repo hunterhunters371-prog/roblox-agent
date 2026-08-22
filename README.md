@@ -39,7 +39,7 @@ roblox-agent/
 │   ├── result.schema.json
 │   ├── allowed_roots.json
 │   └── allowed_classes.json
-├── snapshots/          # inspect_tree guardados como referencia
+├── snapshots/          # inspect_tree guardados como referencia (+ planos de réplica, v1.9)
 ├── logs/
 ├── project/            # Código del juego (sincronizado con Rojo)
 └── plugin/             # Plugin de Roblox Studio (Fase 3)
@@ -70,4 +70,5 @@ roblox-agent/
 - [x] **v0.1** — Estructura del repo + schemas del protocolo
 - [ ] **v0.1** — MVP del plugin: Sync, Inspect, Apply, Undo, Logs
 - [ ] **v0.1** — Primer comando end-to-end (Notion → GitHub → Studio)
+- [x] **Plugin v1.9** — Réplica de instancias: `capture_spec` (plano rejugable del objeto señalado) + `replicate_instance` (reconstruye desde plano u objeto en vivo, con `count`/`offset`/`step` para series) + botón 🧬 Replicar en el panel
 - [ ] **v0.2** — Terrain, push en tiempo real (webhook → worker), `validate_build`, firmas de integridad
