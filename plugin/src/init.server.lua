@@ -21,6 +21,9 @@
 --        creados por código en modo Play) + cola local de snapshots: en Play
 --        Studio bloquea el HTTP del plugin ("can only be executed by game
 --        server") y las capturas suben solas al detener la simulación.
+-- v1.9.2: la réplica y la captura señalan QUÉ se agregó: el registro lista cada
+--        copia con su path, nº de nodos y scripts, y el result.json del comando
+--        trae data.copias con ese detalle.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
@@ -250,6 +253,18 @@ local function finishCommand(cmd, processingPath, stateSha, startedAt, results, 
 		end)
 	end
 	ui:SetProgress(nil) -- v1.6: ocultar la barra al terminar
+	-- v1.9.2: señalar qué objeto o script se agregó en cada copia
+	for _, r in ipairs(results) do
+		if type(r.data) == "table" and type(r.data.copias) == "table" then
+			for _, copia in ipairs(r.data.copias) do
+				local extra = ("%d nodos"):format(copia.nodos or 0)
+				if type(copia.scripts) == "table" and #copia.scripts > 0 then
+					extra ..= (" · scripts: %s"):format(table.concat(copia.scripts, ", "))
+				end
+				ui:Log(("✓ agregado %s → %s (%s)"):format(copia.nombre, copia.path, extra))
+			end
+		end
+	end
 	if failed then
 		ui:Log(("%s terminó con %d error(es)."):format(cmd.id, #errors))
 	else
@@ -728,6 +743,15 @@ local function contarNodos(plano)
 	return n
 end
 
+-- v1.9.2: scripts del plano (para que el registro los señale)
+local function contarScriptsPlano(plano)
+	local n = plano.source ~= nil and 1 or 0
+	for _, hijo in ipairs(plano.children or {}) do
+		n += contarScriptsPlano(hijo)
+	end
+	return n
+end
+
 -- Captura la selección como plano rejugable (Ops.CaptureBlueprint) y lo sube a
 -- snapshots/plan_<ts>.json. El agente lo rejuega con replicate_instance: pasa el
 -- plano como 'spec', o usa 'path' con el objeto en vivo. Opciones: new_parent
@@ -748,10 +772,12 @@ local function doCapturarPlan()
 	local ok, err = pcall(function()
 		local planos = {}
 		local nodos = 0
+		local scripts = 0 -- v1.9.2
 		for _, inst in ipairs(objetivos) do
 			local plano = Ops.CaptureBlueprint(inst, 10, true)
 			table.insert(planos, plano)
 			nodos += contarNodos(plano)
+			scripts += contarScriptsPlano(plano)
 		end
 		local nombre = "plan_" .. os.date("!%Y%m%d_%H%M%S") .. ".json"
 		local subio = subirSnapshot(nombre, {
@@ -760,11 +786,19 @@ local function doCapturarPlan()
 			play_mode = RunService:IsRunning(),
 			total = #planos,
 			nodos = nodos,
+			scripts = scripts, -- v1.9.2
 			instrucciones = "Rejugable con la op replicate_instance: pasa cada plano como 'spec', o usa 'path' con el objeto en vivo. Opciones: new_parent (obligatorio), new_name, offset, count (1-50), step.",
 			planos = planos,
 		}, ("snapshot: plano de réplica (%d raíz/raíces, %d nodos)"):format(#planos, nodos))
 		if subio then
-			ui:Log(("✓ Plano subido: snapshots/%s — %d raíz/raíces, %d nodos"):format(nombre, #planos, nodos))
+			ui:Log(
+				("✓ Plano subido: snapshots/%s — %d raíz/raíces, %d nodos, %d script(s)"):format(
+					nombre,
+					#planos,
+					nodos,
+					scripts
+				)
+			)
 		end
 	end)
 	if not ok then
