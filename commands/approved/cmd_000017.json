@@ -1,0 +1,27 @@
+{
+  "version": "0.1",
+  "id": "cmd_000017",
+  "title": "Crear una caja",
+  "created_by": "notion-agent",
+  "created_at": "2026-08-22T19:20:00Z",
+  "request": "crea una caja (mensaje del chat del plugin)",
+  "options": {
+    "require_approval": true,
+    "create_waypoint": true
+  },
+  "operations": [
+    {
+      "op": "ensure_instance",
+      "id": "op_1",
+      "path": "Workspace.Caja",
+      "class": "Part",
+      "properties": {
+        "Size": [8, 4, 8],
+        "Position": [-38.5, 20, 380],
+        "Color": [226, 155, 64],
+        "Material": "SmoothPlastic",
+        "Anchored": true
+      }
+    }
+  ]
+}
