@@ -15,8 +15,9 @@ _TEMPORAL = tempfile.mkdtemp(prefix="mc-nav-")
 config.DATA_DIR = Path(_TEMPORAL)
 config.JOBS_DIR = Path(_TEMPORAL) / "jobs"
 
-from app import convert  # noqa: E402
-from app.formats import html_navegador  # noqa: E402
+from app import convert, headless  # noqa: E402
+from app.formats import gltf, html_navegador  # noqa: E402
+from tests.generar_modelo_prueba import escena_cubo  # noqa: E402
 
 PAGINA_MODULO = """<!doctype html>
 <html><head>
@@ -88,6 +89,63 @@ class PruebasHtmlNavegador(unittest.TestCase):
         self.assertEqual(info["paso_siguiente"], "visor_exportable.html")
         self.assertIn("visor_exportable.html", info["archivos"])
         self.assertIn("info.json", info["archivos"])
+
+    def test_headless_desactivado_devuelve_exportable(self):
+        original = config.HEADLESS
+        config.HEADLESS = False
+        try:
+            with tempfile.TemporaryDirectory() as directorio:
+                base = Path(directorio)
+                entrada = base / "visor.html"
+                entrada.write_text(PAGINA_MODULO, "utf-8")
+                info = convert.convertir(entrada, base / "salida", salidas=["glb"])
+            self.assertTrue(info["requiere_navegador"])
+        finally:
+            config.HEADLESS = original
+
+    def test_headless_sin_resultado_cae_al_plan_b(self):
+        original_disponible = headless.disponible
+        original_exportar = headless.exportar_glb
+        try:
+            headless.disponible = lambda: True
+            headless.exportar_glb = lambda datos, registrar=lambda m: None: None
+            with tempfile.TemporaryDirectory() as directorio:
+                base = Path(directorio)
+                entrada = base / "visor.html"
+                entrada.write_text(PAGINA_MODULO, "utf-8")
+                info = convert.convertir(entrada, base / "salida", salidas=["glb"])
+            self.assertTrue(info["requiere_navegador"])
+        finally:
+            headless.disponible = original_disponible
+            headless.exportar_glb = original_exportar
+
+    def test_headless_convierte_sin_plan_b(self):
+        original_disponible = headless.disponible
+        original_exportar = headless.exportar_glb
+        original_headless = config.HEADLESS
+        try:
+            config.HEADLESS = True
+            headless.disponible = lambda: True
+            headless.exportar_glb = (
+                lambda datos, registrar=lambda m: None: gltf.write_glb(escena_cubo())
+            )
+            with tempfile.TemporaryDirectory() as directorio:
+                base = Path(directorio)
+                entrada = base / "visor.html"
+                entrada.write_text(PAGINA_MODULO, "utf-8")
+                info = convert.convertir(
+                    entrada, base / "salida", salidas=["glb", "obj", "zip"]
+                )
+            self.assertNotIn("requiere_navegador", info)
+            self.assertEqual(info["geometria"]["triangulos"], 12)
+            self.assertEqual(info["formato_entrada"], "html")
+            self.assertIn("visor.glb", info["archivos"])
+            self.assertIn("visor.obj", info["archivos"])
+            self.assertIn("visor_convertido.zip", info["archivos"])
+        finally:
+            config.HEADLESS = original_headless
+            headless.disponible = original_disponible
+            headless.exportar_glb = original_exportar
 
 
 if __name__ == "__main__":

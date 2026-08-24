@@ -30,6 +30,12 @@ if ! python -m pip install --quiet -r requirements.txt; then
   exit 1
 fi
 
+if [ "${MC_HEADLESS:-1}" != "0" ]; then
+  echo "Instalando Chrome headless para HTML procedural (una sola vez, unos 2 minutos)"
+  python -m playwright install chromium 2>&1 | tail -n 2 || \
+    echo "AVISO: no se pudo instalar Chrome; los HTML con geometria por codigo devolveran la version exportable."
+fi
+
 echo "Ejecutando pruebas (no bloquean el arranque)"
 python -m unittest discover -s tests -t . 2>&1 | tail -n 3 || true
 
