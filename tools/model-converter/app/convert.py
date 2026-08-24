@@ -13,6 +13,7 @@ from app import config, preview
 from app.formats import (
     gltf,
     html as formato_html,
+    html_navegador,
     obj as formato_obj,
     ply as formato_ply,
     stl as formato_stl,
@@ -170,6 +171,76 @@ def cargar_escena(ruta, registrar=_sin_registro):
     return _cargar_trimesh(ruta)
 
 
+def _preparar_html_procedural(origen, directorio_salida, registrar, inicio):
+    """Si la pagina genera la geometria con JavaScript, devuelve la version
+    exportable en vez de fallar. Devuelve None cuando no aplica.
+    """
+    datos = origen.read_bytes()
+    try:
+        formato_html.extraer_modelo(datos, base=origen.parent)
+        return None
+    except ConversionError:
+        pass
+
+    texto = datos.decode("utf-8", "replace")
+    if not html_navegador.es_pagina_procedural(texto):
+        return None
+
+    preparada, nombre_escena = html_navegador.preparar(datos)
+    nombre = origen.stem + "_exportable.html"
+    (directorio_salida / nombre).write_bytes(preparada)
+    registrar(
+        "La pagina construye la geometria con JavaScript (escena: "
+        + str(nombre_escena)
+        + "). No hay modelo dentro del archivo."
+    )
+    registrar(
+        "Preparado "
+        + nombre
+        + " ("
+        + str(len(preparada))
+        + " bytes): abrelo en el navegador y pulsa Descargar GLB."
+    )
+
+    info = {
+        "nombre_entrada": origen.name,
+        "modelo_leido": origen.name,
+        "formato_entrada": origen.suffix.lower().lstrip("."),
+        "requiere_navegador": True,
+        "escena_detectada": nombre_escena,
+        "version_three": html_navegador.version_three(texto),
+        "salidas": [],
+        "geometria": {
+            "mallas": 0,
+            "vertices": 0,
+            "triangulos": 0,
+            "materiales": 0,
+            "texturas": 0,
+        },
+        "texturas": [],
+        "materiales": [],
+        "vista_previa": {"generada": False, "motivo": "requiere navegador"},
+        "avisos": [
+            "La geometria solo existe cuando el navegador ejecuta el codigo, "
+            "asi que no se puede extraer en el servidor.",
+            "Descarga "
+            + nombre
+            + ", abrelo en el navegador y pulsa Descargar GLB.",
+            "Sube ese modelo.glb aqui para obtener GLB, OBJ y el paquete.",
+        ],
+        "paso_siguiente": nombre,
+        "segundos": round(time.time() - inicio, 3),
+        "version": __import__("app").__version__,
+    }
+    (directorio_salida / "info.json").write_text(
+        json.dumps(info, ensure_ascii=False, indent=2), "utf-8"
+    )
+    info["archivos"] = sorted(
+        p.name for p in directorio_salida.iterdir() if p.is_file()
+    )
+    return info
+
+
 def convertir(ruta_entrada, directorio_salida, salidas=None, registrar=None):
     """Convierte un modelo y escribe todas las salidas pedidas.
 
@@ -191,6 +262,13 @@ def convertir(ruta_entrada, directorio_salida, salidas=None, registrar=None):
         )
         origen = elegir_modelo(extraidos)
         registrar("Modelo principal del paquete: " + origen.name)
+
+    if origen.suffix.lower() in (".html", ".htm"):
+        preparado = _preparar_html_procedural(
+            origen, directorio_salida, registrar, inicio
+        )
+        if preparado is not None:
+            return preparado
 
     escena = cargar_escena(origen, registrar)
     completadas = completar_normales(escena)
