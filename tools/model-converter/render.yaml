@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: model-converter
+    runtime: python
+    plan: free
+    rootDir: tools/model-converter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    envVars:
+      - key: MC_DATA_DIR
+        value: /tmp/model-converter
+      - key: MC_WORKERS
+        value: "2"
+      - key: MC_MAX_UPLOAD_MB
+        value: "100"
+      - key: MC_JOB_TTL_HOURS
+        value: "24"
+      - key: PYTHON_VERSION
+        value: "3.12.6"
