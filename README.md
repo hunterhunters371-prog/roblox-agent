@@ -7,10 +7,10 @@ Canal de órdenes entre un **agente** (Notion Custom Agent vía GitHub MCP) y un
 ## Cómo funciona
 
 ```
-┌──────────────┐      ┌───────────────────┐      ┌─────────────────────┐      ┌─────────────┐
+┌─────────────┐      ┌───────────────────┐      ┌────────────────────┐      ┌────────────┐
 │ Notion Agent │ ───▶ │ commands/pending/ │ ───▶ │ Plugin (Sync)       │ ───▶ │ Studio      │
 │              │      │                   │      │ valida → aprueba →  │      │ instancias  │
-└──────────────┘      └───────────────────┘      │ ejecuta → reporta   │      └─────────────┘
+└─────────────┘      └───────────────────┘      │ ejecuta → reporta   │      └────────────┘
                                                   └─────────────────────┘
 ```
 
@@ -39,11 +39,28 @@ roblox-agent/
 │   ├── result.schema.json
 │   ├── allowed_roots.json
 │   └── allowed_classes.json
+├── docs/               # Apartados operativos: cómo se hace el trabajo
+│   ├── modelado-3d/    #   proceso, specs y registro de los modelos 3D
+│   └── scripting-luau/ #   proceso, specs y registro de las mecánicas Luau
+├── memory/             # Handoff y estado del proyecto entre sesiones
+├── chat/               # Mensajería con el plugin (inbox / outbox)
+├── tools/              # Utilidades fuera de Studio (model-converter)
 ├── snapshots/          # inspect_tree guardados como referencia
 ├── logs/
 ├── project/            # Código del juego (sincronizado con Rojo)
 └── plugin/             # Plugin de Roblox Studio (Fase 3)
 ```
+
+## Apartados operativos
+
+Cada carpeta de `docs/` es un mini agente con su proceso, sus especificaciones y su registro de iteraciones. Índice completo en [`docs/README.md`](docs/README.md).
+
+| Apartado | Rol | Entrega |
+|---|---|---|
+| [`docs/modelado-3d/`](docs/modelado-3d/README.md) | Modelador 3D: geometría procedimental, medidas exactas, control de calidad visual. | Modelos parametrizados, variantes y escenas de revisión. |
+| [`docs/scripting-luau/`](docs/scripting-luau/README.md) | Programador de gameplay en Luau: implementa las mecánicas al pie de la letra, con servidor autoritativo y prueba obligatoria en Studio. | Módulos y scripts entregados por comandos del Bridge. |
+
+Frontera entre ambos: el modelado entrega instancias con atributos y el scripting solo lee esos atributos. Ninguno modifica el trabajo del otro.
 
 ## Ciclo de vida
 
