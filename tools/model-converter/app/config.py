@@ -45,6 +45,10 @@ PREVIEW_WIDTH = _entero("MC_PREVIEW_WIDTH", 640)
 PREVIEW_HEIGHT = _entero("MC_PREVIEW_HEIGHT", 480)
 PREVIEW_MAX_TRIANGLES = _entero("MC_PREVIEW_MAX_TRIANGLES", 200000)
 
+HEADLESS = _booleano("MC_HEADLESS", True)
+HEADLESS_ESPERA_MS = _entero("MC_HEADLESS_ESPERA_MS", 4000)
+HEADLESS_TIMEOUT_MS = _entero("MC_HEADLESS_TIMEOUT_MS", 90000)
+
 EXTENSIONES_NATIVAS = {".glb", ".gltf", ".obj", ".stl", ".ply"}
 EXTENSIONES_INCRUSTADAS = {".html", ".htm"}
 EXTENSIONES_TRIMESH = {".dae", ".off", ".3mf", ".xyz"}
@@ -58,6 +62,17 @@ def hay_trimesh():
     except Exception:
         return False
     return True
+
+
+def hay_navegador():
+    """Indica si la exportacion headless esta activa y el navegador instalado."""
+    if not HEADLESS:
+        return False
+    try:
+        from app import headless
+    except Exception:
+        return False
+    return headless.disponible()
 
 
 def extensiones_entrada():
@@ -82,6 +97,7 @@ def resumen():
         "limite_cola": MAX_QUEUE,
         "vista_previa": PREVIEW,
         "backend_trimesh": hay_trimesh(),
+        "navegador_headless": hay_navegador(),
         "formatos_entrada": sorted(extensiones_entrada()),
         "formatos_salida": list(SALIDAS_VALIDAS),
     }
