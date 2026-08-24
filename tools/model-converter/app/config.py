@@ -46,6 +46,7 @@ PREVIEW_HEIGHT = _entero("MC_PREVIEW_HEIGHT", 480)
 PREVIEW_MAX_TRIANGLES = _entero("MC_PREVIEW_MAX_TRIANGLES", 200000)
 
 EXTENSIONES_NATIVAS = {".glb", ".gltf", ".obj", ".stl", ".ply"}
+EXTENSIONES_INCRUSTADAS = {".html", ".htm"}
 EXTENSIONES_TRIMESH = {".dae", ".off", ".3mf", ".xyz"}
 SALIDAS_VALIDAS = ("glb", "obj", "zip")
 
@@ -60,8 +61,8 @@ def hay_trimesh():
 
 
 def extensiones_entrada():
-    """Extensiones aceptadas en la subida, incluyendo el empaquetado ZIP."""
-    extensiones = set(EXTENSIONES_NATIVAS)
+    """Extensiones aceptadas en la subida, incluyendo HTML y empaquetado ZIP."""
+    extensiones = set(EXTENSIONES_NATIVAS) | set(EXTENSIONES_INCRUSTADAS)
     if hay_trimesh():
         extensiones |= EXTENSIONES_TRIMESH
     extensiones.add(".zip")
