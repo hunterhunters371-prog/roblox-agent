@@ -10,7 +10,13 @@ import zipfile
 from pathlib import Path
 
 from app import config, preview
-from app.formats import gltf, obj as formato_obj, ply as formato_ply, stl as formato_stl
+from app.formats import (
+    gltf,
+    html as formato_html,
+    obj as formato_obj,
+    ply as formato_ply,
+    stl as formato_stl,
+)
 from app.formats.mesh import (
     ConversionError,
     completar_normales,
@@ -18,7 +24,19 @@ from app.formats.mesh import (
     validar,
 )
 
-_PRIORIDAD = [".glb", ".gltf", ".obj", ".stl", ".ply", ".dae", ".off", ".3mf", ".xyz"]
+_PRIORIDAD = [
+    ".glb",
+    ".gltf",
+    ".obj",
+    ".stl",
+    ".ply",
+    ".dae",
+    ".off",
+    ".3mf",
+    ".xyz",
+    ".html",
+    ".htm",
+]
 
 
 def _sin_registro(mensaje):
@@ -130,6 +148,25 @@ def cargar_escena(ruta, registrar=_sin_registro):
         return formato_stl.read_stl(datos, nombre=ruta.stem)
     if extension == ".ply":
         return formato_ply.read_ply(datos, nombre=ruta.stem)
+    if extension in (".html", ".htm"):
+        incrustado, extension_real, origen = formato_html.extraer_modelo(
+            datos, base=ruta.parent
+        )
+        registrar(
+            "Modelo incrustado en HTML ("
+            + origen
+            + ") -> "
+            + extension_real
+            + ", "
+            + str(len(incrustado))
+            + " bytes"
+        )
+        destino = ruta.parent / (ruta.stem + "_incrustado" + extension_real)
+        destino.write_bytes(incrustado)
+        if extension_real == ".zip":
+            extraidos = extraer_zip(destino, ruta.parent / "html_paquete", registrar)
+            destino = elegir_modelo(extraidos)
+        return cargar_escena(destino, registrar)
     return _cargar_trimesh(ruta)
 
 
