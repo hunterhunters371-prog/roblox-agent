@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extractor y conversor de modelos 3D</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #14161a; color: #e7e9ee; }
+main { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+p.sub { color: #9aa1ad; margin: 0 0 28px; }
+#zona { border: 2px dashed #3a404b; border-radius: 12px; padding: 40px 20px;
+  text-align: center; background: #191c22; transition: border-color .15s, background .15s; }
+#zona.activa { border-color: #6aa9ff; background: #1d2330; }
+#zona strong { display: block; font-size: 17px; margin-bottom: 6px; }
+#zona span { color: #9aa1ad; font-size: 14px; }
+button { background: #2b6cf6; color: #fff; border: 0; border-radius: 8px;
+  padding: 10px 18px; font-size: 14px; cursor: pointer; }
+button:disabled { background: #39404d; cursor: default; }
+label.op { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px;
+  font-size: 14px; color: #c8cdd7; }
+.fila { margin: 18px 0; }
+#panel { margin-top: 26px; background: #191c22; border: 1px solid #2a2f38;
+  border-radius: 12px; padding: 18px 20px; display: none; }
+#panel.visible { display: block; }
+.estado { font-size: 14px; color: #9aa1ad; }
+.err { color: #ff8d85; }
+.ok { color: #7ddc9a; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #262b34; }
+a { color: #83b4ff; }
+pre { background: #10131a; border: 1px solid #262b34; border-radius: 8px;
+  padding: 12px; overflow: auto; max-height: 240px; font-size: 12px; color: #b9c0cc; }
+img#vista { max-width: 100%; border-radius: 8px; margin-top: 12px; border: 1px solid #262b34; }
+.cifras { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; color: #c8cdd7; }
+.cifras div { background: #10131a; border: 1px solid #262b34; border-radius: 8px; padding: 8px 12px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Extractor y conversor de modelos 3D</h1>
+<p class="sub">Sube un modelo o un ZIP y descarga la geometria, las texturas extraidas y el paquete completo.</p>
+
+<div id="zona">
+  <strong>Arrastra el archivo aqui</strong>
+  <span id="formatos">o pulsa para elegirlo</span>
+  <input id="archivo" type="file" hidden>
+</div>
+
+<div class="fila">
+  <label class="op"><input type="checkbox" value="glb" checked> GLB</label>
+  <label class="op"><input type="checkbox" value="obj" checked> OBJ + MTL + texturas</label>
+  <label class="op"><input type="checkbox" value="zip" checked> ZIP con todo</label>
+</div>
+<div class="fila"><button id="enviar" disabled>Convertir</button></div>
+
+<div id="panel">
+  <div class="estado" id="estado">En cola...</div>
+  <div class="cifras" id="cifras"></div>
+  <img id="vista" alt="Vista previa" hidden>
+  <table id="archivos" hidden><thead><tr><th>Archivo</th><th>Bytes</th></tr></thead><tbody></tbody></table>
+  <pre id="registro" hidden></pre>
+</div>
+</main>
+<script>
+const zona = document.getElementById('zona');
+const entrada = document.getElementById('archivo');
+const boton = document.getElementById('enviar');
+const panel = document.getElementById('panel');
+const estado = document.getElementById('estado');
+const cifras = document.getElementById('cifras');
+const tabla = document.getElementById('archivos');
+const registro = document.getElementById('registro');
+const vista = document.getElementById('vista');
+let elegido = null;
+let temporizador = null;
+
+fetch('/api/health').then(r => r.json()).then(d => {
+  document.getElementById('formatos').textContent =
+    'Formatos: ' + d.formatos_entrada.join(' ') + '  |  limite ' + d.limite_subida_mb + ' MB';
+}).catch(() => {});
+
+zona.addEventListener('click', () => entrada.click());
+['dragenter','dragover'].forEach(evento => zona.addEventListener(evento, e => {
+  e.preventDefault(); zona.classList.add('activa');
+}));
+['dragleave','drop'].forEach(evento => zona.addEventListener(evento, e => {
+  e.preventDefault(); zona.classList.remove('activa');
+}));
+zona.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) seleccionar(e.dataTransfer.files[0]);
+});
+entrada.addEventListener('change', () => {
+  if (entrada.files.length) seleccionar(entrada.files[0]);
+});
+
+function seleccionar(archivo) {
+  elegido = archivo;
+  zona.querySelector('strong').textContent = archivo.name;
+  boton.disabled = false;
+}
+
+function salidas() {
+  return Array.from(document.querySelectorAll('.op input:checked')).map(c => c.value).join(',');
+}
+
+boton.addEventListener('click', async () => {
+  if (!elegido) return;
+  boton.disabled = true;
+  panel.classList.add('visible');
+  estado.className = 'estado';
+  estado.textContent = 'Subiendo ' + elegido.name + '...';
+  tabla.hidden = true; registro.hidden = true; vista.hidden = true;
+  cifras.innerHTML = '';
+  const url = '/api/jobs?filename=' + encodeURIComponent(elegido.name) + '&outputs=' + salidas();
+  try {
+    const respuesta = await fetch(url, { method: 'POST', body: elegido });
+    const datos = await respuesta.json();
+    if (!respuesta.ok) throw new Error(datos.error || 'Error de subida');
+    estado.textContent = 'En cola...';
+    vigilar(datos.id);
+  } catch (error) {
+    estado.className = 'estado err';
+    estado.textContent = error.message;
+    boton.disabled = false;
+  }
+});
+
+function vigilar(id) {
+  clearInterval(temporizador);
+  temporizador = setInterval(async () => {
+    const respuesta = await fetch('/api/jobs/' + id);
+    if (!respuesta.ok) return;
+    const trabajo = await respuesta.json();
+    if (trabajo.estado === 'procesando') estado.textContent = 'Convirtiendo...';
+    if (trabajo.estado === 'fallido') {
+      clearInterval(temporizador);
+      estado.className = 'estado err';
+      estado.textContent = 'Fallo: ' + (trabajo.error || 'error desconocido');
+      mostrarRegistro(id);
+      boton.disabled = false;
+    }
+    if (trabajo.estado === 'completado') {
+      clearInterval(temporizador);
+      estado.className = 'estado ok';
+      estado.textContent = 'Listo en ' + (trabajo.info && trabajo.info.segundos) + ' s';
+      pintar(id, trabajo);
+      mostrarRegistro(id);
+      boton.disabled = false;
+    }
+  }, 900);
+}
+
+function pintar(id, trabajo) {
+  const g = (trabajo.info && trabajo.info.geometria) || {};
+  cifras.innerHTML = '';
+  const pares = [['mallas', g.mallas], ['vertices', g.vertices], ['triangulos', g.triangulos],
+                 ['materiales', g.materiales], ['texturas', g.texturas]];
+  pares.forEach(par => {
+    if (par[1] === undefined) return;
+    const caja = document.createElement('div');
+    caja.textContent = par[0] + ': ' + par[1];
+    cifras.appendChild(caja);
+  });
+  const cuerpo = tabla.querySelector('tbody');
+  cuerpo.innerHTML = '';
+  (trabajo.archivos || []).forEach(archivo => {
+    const fila = document.createElement('tr');
+    const enlace = '/api/jobs/' + id + '/files/' + encodeURIComponent(archivo.nombre);
+    fila.innerHTML = '<td><a href="' + enlace + '">' + archivo.nombre + '</a></td><td>' + archivo.bytes + '</td>';
+    cuerpo.appendChild(fila);
+    if (archivo.nombre === 'vista_previa.png') {
+      vista.src = enlace;
+      vista.hidden = false;
+    }
+  });
+  tabla.hidden = false;
+}
+
+async function mostrarRegistro(id) {
+  const respuesta = await fetch('/api/jobs/' + id + '/log');
+  if (!respuesta.ok) return;
+  registro.textContent = await respuesta.text();
+  registro.hidden = false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: model-converter
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/model-converter/**"
+      - ".github/workflows/model-converter.yml"
+  pull_request:
+    paths:
+      - "tools/model-converter/**"
+      - ".github/workflows/model-converter.yml"
+  workflow_dispatch:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/model-converter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+      - name: Pruebas unitarias
+        run: python -m unittest discover -s tests -t . -v
+      - name: Conversion de extremo a extremo
+        run: |
+          python tests/generar_modelo_prueba.py /tmp/cubo.glb
+          python - <<'PY'
+          from pathlib import Path
+          from app.convert import convertir
+          info = convertir(Path("/tmp/cubo.glb"), Path("/tmp/salida"), ["glb", "obj", "zip"])
+          assert info["geometria"]["triangulos"] == 12, info
+          assert info["paquete"].endswith(".zip"), info
+          print("conversion correcta:", info["archivos"])
+          PY
