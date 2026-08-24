@@ -9,7 +9,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from app import config, preview
+from app import config, headless, preview
 from app.formats import (
     gltf,
     html as formato_html,
@@ -171,6 +171,23 @@ def cargar_escena(ruta, registrar=_sin_registro):
     return _cargar_trimesh(ruta)
 
 
+def _intentar_headless(origen, registrar):
+    """Ejecuta la pagina en un navegador headless y devuelve el GLB, o None."""
+    datos = origen.read_bytes()
+    texto = datos.decode("utf-8", "replace")
+    if not html_navegador.es_pagina_procedural(texto):
+        return None
+    if not config.HEADLESS:
+        registrar("Exportacion headless desactivada (MC_HEADLESS=0).")
+        return None
+    if not headless.disponible():
+        registrar(
+            "Navegador headless no instalado; se prepara el HTML exportable."
+        )
+        return None
+    return headless.exportar_glb(datos, registrar)
+
+
 def _preparar_html_procedural(origen, directorio_salida, registrar, inicio):
     """Si la pagina genera la geometria con JavaScript, devuelve la version
     exportable en vez de fallar. Devuelve None cuando no aplica.
@@ -263,14 +280,20 @@ def convertir(ruta_entrada, directorio_salida, salidas=None, registrar=None):
         origen = elegir_modelo(extraidos)
         registrar("Modelo principal del paquete: " + origen.name)
 
+    escena = None
     if origen.suffix.lower() in (".html", ".htm"):
-        preparado = _preparar_html_procedural(
-            origen, directorio_salida, registrar, inicio
-        )
-        if preparado is not None:
-            return preparado
+        glb_navegador = _intentar_headless(origen, registrar)
+        if glb_navegador is not None:
+            escena = gltf.read_gltf(glb_navegador, base=None, formato="glb")
+        else:
+            preparado = _preparar_html_procedural(
+                origen, directorio_salida, registrar, inicio
+            )
+            if preparado is not None:
+                return preparado
 
-    escena = cargar_escena(origen, registrar)
+    if escena is None:
+        escena = cargar_escena(origen, registrar)
     completadas = completar_normales(escena)
     if completadas:
         registrar("Normales calculadas para " + str(completadas) + " mallas")
