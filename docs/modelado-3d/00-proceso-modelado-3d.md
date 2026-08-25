@@ -1,8 +1,12 @@
-# Proceso de modelado 3D para Roblox — versión 1.0
+# Proceso de modelado 3D para Roblox — versión 1.1
 
 Proceso que se aplica siempre, en este orden, para producir cualquier modelo del
 juego. Está escrito para que otra IA lo ejecute sin contexto adicional y pueda
 mejorarlo. Cada fase declara qué entra, qué sale y cómo se verifica.
+
+La versión 1.1 incorpora las reglas que salieron de la auditoría de
+`MochilaReparto` 1.0.0, donde catorce defectos pasaron el checklist anterior
+porque el modelo se declaró terminado sin haberlo visto renderizado.
 
 ## Principios
 
@@ -21,6 +25,9 @@ mejorarlo. Cada fase declara qué entra, qué sale y cómo se verifica.
    nombres de instancias ni posiciones mágicas.
 6. **Determinismo.** Los detalles aleatorios (patrón del código de barras,
    desgaste) se derivan de una semilla estable, no de `math.random` global.
+7. **Nada se entrega sin verlo.** Un modelo que nadie ha visto renderizado no
+   está terminado, por limpio que sea el código. El visor de
+   `10-visor-html-autocontenido.md` existe para eso.
 
 ## Fase 1 — Leer la referencia y extraer el contrato
 
@@ -35,6 +42,9 @@ mejorarlo. Cada fase declara qué entra, qué sale y cómo se verifica.
    altura, cuando un avatar mide unos 5 studs.
 4. Las contradicciones se reportan antes de modelar, con la interpretación
    propuesta y su alternativa. No se resuelven en silencio.
+5. Cada elemento visible de la referencia entra en la tabla del contrato, con
+   la pieza que lo va a construir. Si un elemento no tiene fila, se olvidará:
+   así desapareció el broche lateral de la mochila en la 1.0.0.
 
 **Verificación**: la lista de características cabe en una tabla y cada fila
 tiene un responsable en el modelo final.
@@ -76,6 +86,11 @@ tamaño desde la cámara de juego.
 3. Unión con `WeldConstraint`, nunca con `Weld` manual ni posiciones absolutas.
 4. Nombres en español, descriptivos y estables: el gameplay y las herramientas
    dependen de ellos.
+5. Antes de añadir una pieza nueva, comprobar con qué vecinos comparte volumen.
+   Dos familias distintas que ocupan el mismo hueco es un defecto, no un
+   detalle: en la 1.0.0 de la mochila la correa atravesaba el bolsillo lateral.
+6. Las medidas derivadas se calculan a partir de constantes con nombre, no se
+   copian a mano. Mover la tapa debe arrastrar labio, rieles, asa y hombrera.
 
 **Verificación**: mover el modelo con `PivotTo` arrastra todas las piezas y el
 conteo de triángulos sigue dentro del presupuesto.
@@ -91,6 +106,12 @@ conteo de triángulos sigue dentro del presupuesto.
    desde ahí. Ningún `Color3` suelto en medio del código.
 3. Los materiales que podrían no existir en versiones antiguas del motor se
    consultan con `pcall` y tienen alternativa.
+4. El material se decide por rol de pieza, no por modelo. Un solo material para
+   todo delata el atajo: tela, rígido, metal y cartón se ven distintos bajo la
+   misma luz.
+5. El color oscuro de detalle se reserva para lo que la referencia dibuja como
+   línea. Una pieza que solo aporta volumen va del color del cuerpo, o el modelo
+   acaba con rayas inventadas.
 
 **Verificación**: cambiar un valor de la paleta cambia el modelo entero sin
 tocar otra línea.
@@ -110,6 +131,9 @@ tocar otra línea.
    siempre el mismo dibujo.
 5. El texto que el jugador debe leer se prueba a la distancia real de juego, no
    con la cámara pegada al objeto.
+6. Ninguna pieza geométrica puede invadir la cara donde vive el marcado, y los
+   elementos de un mismo logotipo comparten un contenedor centrado en vez de
+   posicionarse uno a uno.
 
 **Verificación**: dos paquetes con códigos distintos se ven distintos; el mismo
 código produce siempre el mismo patrón.
@@ -171,6 +195,26 @@ Checklist que se ejecuta entero antes de entregar:
 - [ ] Cincuenta instancias simultáneas sin caída de frames perceptible.
 - [ ] Ningún asset externo obligatorio para reconstruirlo.
 
+Añadido en la versión 1.1, de la auditoría de `MochilaReparto` 1.0.0:
+
+- [ ] El modelo se ha capturado en tres vistas como mínimo (tres cuartos,
+      frente y lateral) y las capturas se han inspeccionado una por una.
+- [ ] Ninguna pieza queda por debajo de la base del volumen principal, salvo
+      las que el spec declare como apoyo.
+- [ ] Comprobada por pares la ausencia de interpenetración entre familias de
+      piezas distintas (correa contra bolsillo, hebilla contra esquina, labio
+      contra la cara del logotipo).
+- [ ] Ninguna pieza que deba verse pegada al cuerpo deja un hueco mayor que
+      `0.05` studs.
+- [ ] Los elementos repetidos que deben leerse como varios tienen un hueco
+      mínimo de `0.09` studs y variación de tamaño o de tono.
+- [ ] Lo que debe asomar por encima de un borde asoma al menos `0.12` studs.
+- [ ] Ninguna pieza que solo aporta volumen usa el color de detalle.
+- [ ] Cada rol declarado en el spec usa su material; ninguna pieza se queda con
+      el material por defecto.
+- [ ] Todos los elementos de la referencia tienen su pieza; se recorre la tabla
+      del contrato de la fase 1 una última vez.
+
 ## Fase 11 — Entrega y versionado
 
 1. El constructor vive en `project/src/...` y se versiona con `VERSION` dentro
@@ -178,6 +222,8 @@ Checklist que se ejecuta entero antes de entregar:
 2. El modelo escribe su versión en el atributo `VersionModelo`, de modo que una
    instancia vieja en el mundo se detecta al instante.
 3. El commit describe qué cambió del modelo, no solo el nombre del archivo.
+4. La entrega dice qué está verificado y cómo, y qué no lo está. «No verificado
+   en Studio» es una frase válida; «terminado» sin prueba, no.
 
 ## Fase 12 — Iteración con el revisor
 
@@ -188,6 +234,9 @@ Checklist que se ejecuta entero antes de entregar:
    fase 10, para que el error no pueda repetirse en otro modelo.
 4. Se sube la corrección con la versión incrementada. Nunca se sobrescribe la
    historia.
+5. Cuando el rechazo es genérico («encuentra los errores y mejóralo»), la
+   auditoría la hace el agente: renderiza, enumera defectos con su causa raíz y
+   entrega la lista junto a la corrección.
 
 ## Contrato para otra IA
 
@@ -195,8 +244,8 @@ Checklist que se ejecuta entero antes de entregar:
 juego, presupuesto de triángulos y escala relativa a un avatar de 5 studs.
 
 **Salida esperada**: un constructor procedimental comentado, un spec en esta
-carpeta, una escena de revisión y la entrada correspondiente en el registro de
-iteraciones.
+carpeta, una escena de revisión, capturas del modelo renderizado y la entrada
+correspondiente en el registro de iteraciones.
 
 **Definición de terminado**: el checklist de la fase 10 está completo y el
 revisor aprueba la escena de revisión.

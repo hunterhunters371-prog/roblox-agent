@@ -11,7 +11,16 @@ mejorar un modelo empieza aquí.
 | [`00-proceso-modelado-3d.md`](00-proceso-modelado-3d.md) | Pipeline completo paso a paso. Es el proceso que se aplica siempre, para cualquier modelo. |
 | [`01-paquete-normal.spec.md`](01-paquete-normal.spec.md) | Especificación del modelo base `PaqueteNormal`: medidas, jerarquía, atributos, variantes y criterios de aceptación. |
 | [`02-registro-iteraciones.md`](02-registro-iteraciones.md) | Historial de versiones, rechazos del revisor y reglas nuevas que salieron de cada rechazo. |
+| [`04-motor-render-v2.md`](04-motor-render-v2.md) | Motor de render propio para previsualizar modelos: rasterizador con z-buffer, normales y verificación de texturas. |
+| [`10-visor-html-autocontenido.md`](10-visor-html-autocontenido.md) | Cómo construir el visor HTML de un solo archivo con el que se auditan los modelos antes de entregarlos. |
 | [`11-mochila-reparto.spec.md`](11-mochila-reparto.spec.md) | Especificación del modelo `MochilaReparto` (lámina «DELIVERY BACKPACK»): medidas, jerarquía, atributos, variantes y criterios de aceptación. |
+
+## Estado de los modelos
+
+| Modelo | Versión | Estado |
+|---|---|---|
+| `PaqueteNormal` | 1.0.0 | pendiente de revisión en Studio |
+| `MochilaReparto` | 2.0.0 | reconstruida tras auditoría de catorce defectos; verificada por render, pendiente de revisión en Studio |
 
 ## Dónde vive el modelo
 
@@ -64,3 +73,8 @@ Cada vez que un modelo se rechaza, la corrección se aplica **al proceso**, no
 solo al modelo. El rechazo se anota en `02-registro-iteraciones.md` y se
 convierte en un punto permanente del checklist de calidad. Así, la siguiente IA
 que tome el trabajo no repite el error.
+
+Y antes de entregar, el modelo se mira: se renderiza en el visor de
+`10-visor-html-autocontenido.md` y se inspeccionan las capturas una por una.
+Catorce de los defectos de `MochilaReparto` 1.0.0 eran visibles a simple vista y
+ninguno se detectó leyendo código.
