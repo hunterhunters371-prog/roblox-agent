@@ -1,8 +1,8 @@
 {
-	"version": "3.0.1",
+	"version": "3.1.0",
 	"updated": "2026-08-25",
 	"loader_min": "2.1",
-	"notes": "Igual que 3.0.0 (Lint estatico de todos los scripts + AutoSense: lint/findings.json cada 10 min y espejo place/mirror.json cada 5 min, solo cuando algo cambia; ops lint_scripts y mirror_place). Corrige Lint.lua, AutoSense.lua y Config.lua, que en 3.0.0 se subieron con las comillas escapadas: el require de prueba del loader fallaba y hacia rollback silencioso (sintoma: 'no se actualiza'). Requiere loader 2.1.",
+	"notes": "Ops nuevas set_reference (cablear Part0/Part1, Attachment0/Attachment1, PrimaryPart, SoundGroup... lo que set_property no podia hacer) y weld_parts (soldadura idempotente con WeldConstraint). Whitelist de clases ampliada con VehicleSeat, HingeConstraint, SpringConstraint, CylindricalConstraint, PrismaticConstraint, RodConstraint, NoCollisionConstraint, AlignOrientation, AlignPosition, LinearVelocity, AngularVelocity, Torque, VectorForce, Animation, ProximityPrompt, CanvasGroup, UIScale y efectos de sonido. Con esto el bridge ya puede ensamblar vehiculos como modelos reales en vez de generarlos por script. Incluye el lint automatico y el espejo del place de 3.0.1.",
 	"files": [
 		"Config.lua",
 		"Base64.lua",
