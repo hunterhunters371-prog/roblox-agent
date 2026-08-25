@@ -1,0 +1,13 @@
+{
+	"version": "0.1",
+	"id": "cmd_000049",
+	"title": "Replica exacta del Dusty Trip Car (clon completo, 24 studs al oeste)",
+	"created_by": "notion-agent",
+	"created_at": "2026-08-25T15:45:00Z",
+	"request": "Replica del modelo Workspace['Dusty Trip Car With Auto Flip and NITRO'] via clone_instance: copia byte a byte (21 meshes, constraints, VehicleSeat y TODOS los scripts: nitro, auto-flip, camaras, HUD). clone_instance NO aplica la regla de quitar scripts (esa regla es solo para insert_asset, contenido nuevo del catalogo); el original ya esta dentro del place y el usuario lo aprobo. op_2 aparta el clon 24 studs al oeste (pivot x: -44.25 -> -68.25, misma y/z, rotacion conservada) porque el coche mide ~19 studs en su eje largo (X) y un offset menor lo solaparia con el original. Posicion leida del snapshot seleccion_20260825_153345.json, no adivinada. Si se ejecuta dos veces, op_1 se omite (ya existe) y op_2 solo recoloca.",
+	"options": { "atomic": false, "dry_run": false, "require_approval": true, "create_waypoint": true },
+	"operations": [
+		{ "id": "op_1", "op": "clone_instance", "path": "Workspace.Dusty Trip Car With Auto Flip and NITRO", "new_parent": "Workspace", "new_name": "DustyTripCar_2" },
+		{ "id": "op_2", "op": "set_transform", "path": "Workspace.DustyTripCar_2", "position": [-68.25, 3.64, 8.37] }
+	]
+}
