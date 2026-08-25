@@ -1,0 +1,27 @@
+name: Lint a Issues
+
+# Se dispara cuando el plugin (AutoSense, v3.0.0) publica lint/findings.json y
+# tambien a mano (workflow_dispatch). Convierte los hallazgos en issues:
+# - crea un issue por hallazgo nuevo con el arreglo sugerido
+# - reabre issues cuyos hallazgos reaparecen
+# - cierra issues cuyos hallazgos ya no aparecen (resueltos)
+
+on:
+  push:
+    paths:
+      - "lint/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  lint-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sincronizar hallazgos con issues
+        run: node tools/lint-issues.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
