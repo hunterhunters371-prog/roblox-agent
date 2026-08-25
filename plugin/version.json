@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "notes": "Auto-update desde GitHub (loader permanente + botón ⟳ Actualizar) y nueva op insert_asset (Toolbox/Creator Store vía LoadAsset, scripts eliminados por defecto). Requiere reinstalar el plugin UNA última vez con el loader.",
+  "files": [
+    "Config.lua",
+    "Base64.lua",
+    "GitHub.lua",
+    "Validator.lua",
+    "PathResolver.lua",
+    "Ops.lua",
+    "OpsExtra.lua",
+    "Executor.lua",
+    "UI.lua",
+    "Inspect.lua",
+    "Chat.lua",
+    "Main.lua"
+  ]
+}
