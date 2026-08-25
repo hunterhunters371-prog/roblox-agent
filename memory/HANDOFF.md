@@ -1,9 +1,11 @@
 # HANDOFF - DELIVERY: 60 SECONDS
 
-> Estado del proyecto a **2026-08-24 23:00 (America/Bogota)**.
+> Estado del proyecto a **2026-08-24 23:55 (America/Bogota)**, cola verificada contra el repo.
 > Este archivo existe para que un chat nuevo, sin memoria de la conversacion anterior,
 > pueda retomar el trabajo sin que haya que explicarle nada.
-> Complemento obligatorio: [`memory/WORLD.md`](./WORLD.md) (geometria exacta y contratos del codigo).
+> Complementos obligatorios: [`memory/WORLD.md`](./WORLD.md) (geometria exacta y contratos del
+> codigo) y [`memory/REFERENCIAS.md`](./REFERENCIAS.md) (donde verificar clases, propiedades y
+> buenas practicas en la documentacion oficial **antes** de escribir un comando).
 
 ---
 
@@ -13,21 +15,24 @@
 Retomo el proyecto DELIVERY: 60 SECONDS, un juego de Roblox.
 
 Todo el contexto esta en el repo de GitHub hunterhunters371-prog/roblox-agent,
-rama main, en memory/HANDOFF.md y memory/WORLD.md. Leelos ENTEROS antes de actuar:
-contienen la geometria ya construida con coordenadas exactas, la cola de comandos,
-las deudas tecnicas abiertas y las reglas de trabajo que ya costaron errores.
+rama main, en memory/HANDOFF.md, memory/WORLD.md y memory/REFERENCIAS.md. Leelos
+ENTEROS antes de actuar: contienen la geometria ya construida con coordenadas exactas,
+la cola de comandos, las deudas tecnicas abiertas y las reglas de trabajo que ya
+costaron errores.
 
 El juego se construye a distancia. Los cambios en Roblox Studio se hacen escribiendo
 comandos JSON en commands/pending/ que un plugin (RobloxAgentBridge v2.0.0) sincroniza
 cada 60 s y ejecuta previa aprobacion manual del usuario en Studio. El plugin se
 AUTO-ACTUALIZA: es un loader permanente que descarga el runtime de plugin/src/ segun
 plugin/version.json; para publicar una mejora del plugin basta subir los archivos y
-subir la version en version.json (el usuario pulsa ⟳ Actualizar o abre el panel).
+subir la version en version.json (el usuario pulsa Actualizar o abre el panel).
 Solo un cambio en plugin/src/init.server.lua (el loader) exige reinstalar a mano.
 
 Antes de escribir cualquier comando nuevo:
-1. Lista commands/pending/ y commands/completed/ para ver el estado real de la cola
-   y cual es el siguiente id libre.
+1. Lista commands/pending/, completed/, failed/ y rejected/ para ver el estado real de
+   la cola y cual es el siguiente id libre. El plugin TAMBIEN consume ids: sus
+   inspecciones se guardan como comandos. Nunca deduzcas el id del ultimo que
+   escribiste tu.
 2. Si dudas del formato exacto de una operacion, lee plugin/src/Ops.lua (y
    plugin/src/OpsExtra.lua para las ops nuevas de la v2.0, p. ej. insert_asset).
 3. NUNCA inventes el contenido de un script existente. set_script_source reemplaza
@@ -35,7 +40,11 @@ Antes de escribir cualquier comando nuevo:
    comando de commands/completed/ que lo creo.
 4. Cada archivo que escribas debe pesar menos de 16 KB y usar JSON compacto.
    Un archivo mas grande se trunca a mitad de escritura y GitHub lo acepta roto.
-5. Escribe los comandos de uno en uno, nunca en paralelo (da conflictos 409).
+5. Escribe los comandos de uno en uno, nunca en paralelo (da conflictos 409). Para
+   varios archivos a la vez, una sola llamada push_files: es atomica.
+6. Verifica en la documentacion oficial toda clase, propiedad o enum que el proyecto
+   no haya usado antes. El mapa de rutas esta en memory/REFERENCIAS.md.
+7. Escribe los comandos en ASCII puro mientras la deuda 7 siga abierta.
 
 Habla en espanol.
 
@@ -74,31 +83,42 @@ El otro repo del usuario, `hunterhunters371-prog/maximizador-ia`, no forma parte
 ### Construido y verificado en Studio
 
 - Terreno, dos calles en cruz y aceras.
-- **Tres casas** (`House_1`, `House_2`, `House_3`) con tejado a dos aguas, ventanas, puerta,
-  porche, buzon y arbol.
-- **HQ antiguo** de 20 x 20 en el origen, con pad de recogida y punto de aparicion.
-  *(Lo demuele `cmd_000035`.)*
-- Sistemas de servidor completos: `Config`, `Enums`, `PackageTypes`, `PackageFactory`,
-  `DestinationRegistry`, `PlayerData`, `RewardService`, `DeliveryService`, mas HUD de cliente.
-- Sprint 1 ejecutado en 8 comandos con **0 errores**.
+- **Seis casas** (`House_1` a `House_6`) con tejado a dos aguas, ventanas, puerta, porche, buzon
+  y arbol, mas marcadores y prompts de entrega. Las tres nuevas llegaron con `cmd_000034/035/036`.
+- **Tienda de 40 x 28**: estructura, escaparate, fachada, pad de recogida, spawn, interior con
+  mostrador, cinta y tableros, y exterior con parking, van y mobiliario. El HQ viejo de 20 x 20
+  fue demolido.
+- Sistemas de servidor: `Config`, `Enums`, `PackageTypes`, `PackageFactory`, `DestinationRegistry`,
+  `PlayerData`, `RewardService`, `DeliveryService`, mas el HUD de cliente `Delivery60HUD`.
+- **Temporizador de 60 s** con bandas de aviso (`cmd_000039` y `cmd_000040`): warn a 20 s,
+  critico a 10 s, cuenta atras final de 5 s, pulso a 2 Hz.
+- **Bucle base de entregas encadenado** (`cmd_000041` servidor + `cmd_000042` cliente): al
+  completar o fallar, el panel anuncia `NEXT DELIVERY en 3 s` y el servidor encola la siguiente
+  entrega. `NEXT_DELIVERY_DELAY = 3`, espejado en el cliente. Salvaguardas: jugador desconectado,
+  estado distinto de Idle, personaje muerto.
+- **Rutas alternativas v1** (`cmd_000044`, 6/6 sin errores): carpeta `Workspace.Delivery60.Routes`
+  con pasarela oeste (plataforma y dos rampas de 30 grados), rampa a la azotea de la tienda,
+  rampa a la azotea de `House_6` y un callejon de tres muros. Cubre `House_1`, `House_4`,
+  `House_6` y el cruce N-S. Paleta Metal 70,74,82 y Concrete 150,150,155. Las rampas van a 30
+  grados para que sigan siendo subibles sin salto.
 
-### En cola, escrito pero sin ejecutar
+### Cola real (verificada el 2026-08-25 04:10Z contra el repo)
 
-> **Deben aprobarse en orden numerico.** El 33 decora lo que construye el 32,
-> y el 36 amuebla lo que construye el 35.
-> **Al 2026-08-24: `cmd_000037` ya se ejecuto (checkpoints 6/6, resultado subido) y
-> existe `cmd_000040` (temporizador 60 s). Verifica la cola real con ListFiles
-> antes de escribir nada: esta tabla es del 22-08.**
+`commands/pending/`, `approved/` y `processing/` estan **vacias**: no hay nada esperando
+aprobacion en Studio.
 
-| Comando | Que hace | Ops |
-| --- | --- | --- |
-| `cmd_000032` | Estructura de `House_4`, `House_5`, `House_6` + marcadores + prompts de entrega | 8 |
-| `cmd_000033` | Detalle decorativo de las tres casas nuevas: ventanas, porches, faroles con luz, humo | 9 |
-| `cmd_000034` | Reescribe `ReplicatedStorage.Delivery60.Data.Destinations` con los 6 destinos | 2 |
-| `cmd_000035` | Demuele el HQ viejo y levanta la tienda de 40 x 28: estructura, escaparate, fachada, pad, spawn | 10 |
-| `cmd_000036` | Interior de la tienda (mostrador, cinta, tableros) y exterior (parking, van, mobiliario) | 7 |
+**Siguiente id libre: `cmd_000046`.**
 
-**Siguiente id libre: verificar en commands/ (el 2026-08-24 ya existia `cmd_000040`).**
+`cmd_000045` no lo escribio el agente: es un `inspect_tree` de `Workspace` lanzado desde el
+plugin el 2026-08-25 a las 04:09Z. Las inspecciones del plugin consumen ids de la secuencia.
+
+### Lo que falta del diseno
+
+**Los modificadores de paquete no estan en el juego.** `cmd_000043` (modificador Fragile,
+modificador Public y la reescritura de `Data.PackageTypes` con seis tipos) fue **rechazado**
+con `VALIDATION_FAILED`; ver deuda 7. En partida siguen existiendo solo Normal, Heavy y
+Explosive. Ademas `Modifiers.NoJump` existe en el codigo pero **ningun PackageType lo
+referencia**, asi que nunca aparece en una entrega.
 
 ---
 
@@ -111,27 +131,25 @@ No hay acceso directo a Roblox Studio. El ciclo es:
 3. El usuario lo **aprueba manualmente** en el panel COMANDOS del plugin.
 4. El plugin ejecuta las operaciones y sube `commands/completed/cmd_XXXXXX.result.json`.
 
-Arquitectura del plugin (v2.0): `init.server.lua` es un **loader** permanente (toolbar,
-widget, boton **⟳ Actualizar**); el runtime (`Main`, `UI`, `Inspect`, `Chat`, `Ops`,
-`OpsExtra`, `Executor`, `Validator`, `GitHub`, `Config`, `Base64`, `PathResolver`) se
-descarga de `plugin/src/` segun `plugin/version.json` y se reinicia en caliente con
-rollback automatico si la version nueva no carga.
+Arquitectura del plugin (v2.0): `init.server.lua` es un **loader** permanente (toolbar, widget,
+boton **Actualizar**); el runtime (`Main`, `UI`, `Inspect`, `Chat`, `Ops`, `OpsExtra`,
+`Executor`, `Validator`, `GitHub`, `Config`, `Base64`, `PathResolver`) se descarga de
+`plugin/src/` segun `plugin/version.json` y se reinicia en caliente con rollback automatico.
 
 Requisito en Studio: **Game Settings > Security > Enable Studio Access to API Services**.
 Los objetos creados llevan el atributo `_RBX_Bridge` con el id del comando que los creo.
-Botones del plugin: Sync, Seleccion, Codigo, Entorno, Deshacer, COMANDOS, CHAT y,
-en la toolbar, **⟳ Actualizar**.
-Place de trabajo: `Lugar de BosneSUS_V2: 08222026_3`.
+Botones del plugin: Sync, Seleccion, Codigo, Entorno, Deshacer, COMANDOS, CHAT y, en la
+toolbar, **Actualizar**. Place de trabajo: `Lugar de BosneSUS_V2: 08222026_3`.
 
 ### Envelope de comando (version 0.1)
 
 ```json
 {
   "version": "0.1",
-  "id": "cmd_000037",
+  "id": "cmd_000046",
   "title": "maximo 200 caracteres",
   "created_by": "notion-agent",
-  "created_at": "2026-08-23T00:00:00Z",
+  "created_at": "2026-08-25T00:00:00Z",
   "request": "explicacion en prosa de que hace y por que",
   "options": { "require_approval": true, "create_waypoint": true },
   "operations": [ { "op": "...", "id": "op_1" } ]
@@ -165,10 +183,8 @@ build_from_spec   { parts[ { class*, name, properties, position, rotation, size,
 insert_asset      { asset_id*, path?, position?, name?, allow_scripts? }   <- v2.0: Toolbox
 ```
 
-`insert_asset` (v2.0): inserta de la Toolbox/Creator Store por ID con `LoadAsset`.
-El asset debe ser gratuito/publico o de la cuenta. **Elimina todos los scripts del
-asset por defecto** (seguridad anti-malware); `allow_scripts: true` los conserva y
-fuerza aprobacion humana. No hay busqueda por nombre desde el plugin: IDs exactos.
+`insert_asset` inserta de la Toolbox por ID exacto (no hay busqueda por nombre) y **elimina los
+scripts del asset** por defecto; `allow_scripts: true` los conserva y fuerza aprobacion humana.
 
 ### Codificacion de valores
 
@@ -203,19 +219,25 @@ Brick, Glass, Metal.
 
 1. **Maximo ~16 KB por archivo escrito, y JSON compacto.** Un `create_or_update_file` de 28 KB
    se trunco a mitad de operacion y GitHub commiteo 27168 bytes de JSON invalido sin quejarse.
-   El plugin lo habria rechazado con `VALIDATION_FAILED`. Comprimir: sin espacios tras `:` y `,`,
-   una pieza por linea, y omitir `"Anchored": true` porque ya es el valor por defecto.
+   Comprimir: sin espacios tras `:` y `,`, una pieza por linea, y omitir `"Anchored": true`
+   porque ya es el valor por defecto.
 2. **Escrituras secuenciales, nunca en paralelo.** Dos PUT simultaneos dan `409 is at <sha> but
-   expected <sha>`. (Para varios archivos del repo usar una sola llamada `push_files`: es
-   atomica y no da 409; es lo que usa el agente desde la v2.0.)
+   expected <sha>`. Para varios archivos, una sola llamada `push_files`: es atomica.
 3. **Los ids no se reutilizan ni se editan** una vez el comando sale de `pending/`.
 4. **Nunca adivinar el contenido de un script.** `set_script_source` reemplaza el archivo entero;
    hay que leer el fuente verbatim desde el comando de `commands/completed/` que lo creo.
 5. **Nunca adivinar una coordenada.** Si hace falta la posicion actual de una pieza, se lee con
-   `inspect_instance` en un comando previo.
+   `inspect_instance` en un comando previo. `cmd_000033` murio justo por esto.
 6. **Si al releer un archivo recien escrito en `pending/` da "no existe", buscarlo en
-   `completed/`.** No es un fallo: el plugin ya lo proceso. No reemitir el comando.
+   `completed/`, `failed/` y `rejected/`.** No es un fallo: el plugin ya lo proceso.
 7. **Puertas de 7 studs de alto como minimo.** El avatar R15 mide ~5 studs.
+8. **Verificar en la documentacion oficial antes de usar una clase, propiedad o enum que el
+   proyecto no haya usado antes.** El mapa de rutas de `Roblox/creator-docs` esta en
+   `memory/REFERENCIAS.md`. Ocho comandos se han perdido por dar cosas por supuestas.
+9. **El siguiente id libre se comprueba siempre listando el repo.** El plugin genera comandos
+   propios cuando el usuario inspecciona algo (`cmd_000045`), asi que la secuencia avanza sola.
+10. **ASCII puro en los comandos** mientras la deuda 7 siga abierta: sin emojis ni acentos
+    dentro del JSON, ni en los fuentes de los scripts que viajan en el.
 
 ---
 
@@ -224,63 +246,80 @@ Brick, Glass, Metal.
 | # | Problema | Gravedad | Estado |
 | --- | --- | --- | --- |
 | 1 | **Solvencia de las entregas.** El juego sortea tipo de paquete y destino de forma independiente. Un Heavy (crucero 13.52 studs/s) hacia `House_3` (786 studs) necesita ~58 s de 60: entrega imposible. | **Alta** | Fix disenado, sin aplicar. Ver seccion 6. |
-| 2 | ~~**Bug del plugin: PUT sin `sha`.**~~ | ~~Alta~~ | **RESUELTA (2026-08-24).** v1.9.4: `GitHub.lua` consulta el sha actual antes de cada PUT (+1 reintento). Ademas la v2.0 convierte el plugin en loader+runtime auto-actualizable. Pendiente solo: que el usuario instale el loader UNA vez. |
-| 3 | **`House_2_Door` cerrada.** `cmd_000029` aplico `rotation [0,90,0]` a todas las puertas; en `House_2` el hueco esta en un muro de normal X y la hoja queda dentro del hueco, tapandolo con `CanCollide` true. | Baja (cosmetico) | Sin corregir. Hay que leer antes su posicion exacta con `inspect_instance`. |
+| 2 | ~~Bug del plugin: PUT sin `sha`.~~ | ~~Alta~~ | **RESUELTA (2026-08-24)**, v1.9.4. Pendiente solo que el usuario instale el loader v2.0 UNA vez. |
+| 3 | **`House_2_Door` cerrada.** `cmd_000029` aplico `rotation [0,90,0]` a todas las puertas; en `House_2` el hueco esta en un muro de normal X y la hoja tapa el hueco con `CanCollide` true. | Baja | Sin corregir. Leer antes su posicion con `inspect_instance`. |
 | 4 | **Puertas de 5 studs** en `House_1`, `_2`, `_3`. El avatar mide ~5: no se puede entrar. Las casas nuevas ya van de 7. | Media | Sin corregir. |
-| 5 | `RunStateChanged is not a valid member of RunService`, en `RobloxAgentBridge` linea 1099. | Nula | Inofensivo. **No aparece en el codigo actual del repo** (probablemente era de la v1.9.3 local); verificar tras instalar el loader v2.0. |
-| 6 | `project/default.project.json` **no mapea `StarterPlayer`** en la configuracion de Rojo. | Baja | Sin corregir. |
+| 5 | `RunStateChanged is not a valid member of RunService`. | Nula | Inofensivo. No aparece en el codigo del repo; verificar tras instalar el loader v2.0. |
+| 6 | **El espejo de Rojo no refleja el juego.** `project/src/` solo contiene `ReplicatedStorage/Modelos/PaqueteNormal.lua` y `ServerScriptService/DemoPaquetes.server.lua`: falta todo `Delivery60`. Ademas `project/default.project.json` no mapea `StarterPlayer`. La fuente de verdad del codigo es `commands/completed/`. | Media | Sin corregir. Hay sesion de Rojo activa (`ServerStorage.__Rojo_SessionLock`). |
+| 7 | **`cmd_000043` rechazado con `VALIDATION_FAILED` / "JSON invalido"** (2026-08-25T03:58:55Z), el mismo sintoma que `cmd_000032` (2026-08-22). El plugin no pudo decodificar el archivo, asi que los modificadores estrella (Fragile, Public) y los seis tipos de paquete no llegaron al juego. | **Alta** | Sin corregir. Sospecha principal: caracteres no ASCII. `cmd_000043` llevaba emojis en los iconos de los modificadores; `cmd_000044`, escrito despues y solo con ASCII, paso sin problema. Al reemitir: partirlo en dos comandos, iconos en ASCII y comprobar el peso. |
+| 8 | `cmd_000038` esta en `completed/` **sin** su `.result.json`. | Nula | Victima del bug viejo del `sha`. Se puede escribir un recibo marcado como recuperado. |
 
 ---
 
 ## 6. Proximos pasos, en orden
 
-1. **Instalar el loader v2.0 UNA vez** (ultima reinstalacion manual: borrar el plugin viejo
-   de la carpeta de plugins y seguir `plugin/README.md`; con Rojo o pegando un solo script).
-   Despues las mejoras del plugin llegan solas con ⟳ Actualizar.
-2. **Aprobar la cola pendiente en Studio, en orden numerico** (al 22-08: `cmd_000032` a
-   `cmd_000036`; verificar estado real). Leer despues cada
-   `commands/completed/cmd_XXXXXX.result.json` para confirmar 0 errores.
-3. **Arreglar la solvencia (deuda 1).** Diseno ya cerrado, pendiente solo de releer los fuentes:
-   - Releer `commands/completed/cmd_000024.json` (contiene `PackageFactory`, `DestinationRegistry`,
-     `PlayerData`, `RewardService`, `DeliveryService`) y `cmd_000021.json` (contiene `PackageTypes`).
-   - Constantes: `SPRINT_RATIO = 0.6`, `SAFETY = 0.75`.
+1. **Reemitir los modificadores de paquete (deuda 7).** Es el bloqueante de diseno: sin ellos el
+   juego no tiene su mecanica distintiva. Reescribir `cmd_000043` como dos comandos ASCII:
+   uno con los modulos `Modifiers.Fragile` y `Modifiers.Public`, otro con la reescritura de
+   `Data.PackageTypes` (conservando Normal, Heavy y Explosive byte a byte y anadiendo Fragile,
+   NoJump y Public). Leer antes los fuentes verbatim de `commands/completed/cmd_000021.json`.
+2. **Instalar el loader v2.0 UNA vez**: borrar el plugin viejo de la carpeta de plugins y seguir
+   `plugin/README.md`. Despues las mejoras del plugin llegan solas con el boton Actualizar.
+3. **Arreglar la solvencia (deuda 1).** Diseno cerrado, pendiente de releer los fuentes de
+   `commands/completed/cmd_000024.json` (`PackageFactory`, `DestinationRegistry`, `PlayerData`,
+   `RewardService`, `DeliveryService`):
+   - `SPRINT_RATIO = 0.6`, `SAFETY = 0.75`.
    - `cruiseSpeed = (WalkSpeed * 0.4 + SprintSpeed * 0.6) * multiplicador` = **20.8** Normal,
      **13.52** Heavy. Presupuesto = `Config.DeliveryTimeSeconds * 0.75` = **45 s**.
    - En `PackageFactory`, filtrar `DestinationRegistry.ListIds()` por `distancia / velocidad <= 45`,
      sortear entre los solventes, con fallback al destino mas cercano. `table.sort(typeIds)` para
      que el orden sea estable.
-   - Poner los multiplicadores en una constante local de `PackageFactory` (espejo documentado de
-     `Modifiers.Heavy.SpeedMultiplier = 0.65`) para no tener que reescribir `PackageTypes`.
+   - Multiplicadores en una constante local de `PackageFactory` (espejo documentado de
+     `Modifiers.Heavy.SpeedMultiplier = 0.65`) para no reescribir `PackageTypes`.
    - Resultado esperado: Heavy queda excluido de `House_2` (46.3 s) y `House_3` (58.2 s).
-     Normal y Explosive alcanzan los 6 destinos. `DestinationRegistry` no se toca.
+   - Mas urgente cuando existan seis tipos de paquete: hacerlo despues del paso 1.
 4. **Playtest guiado** (Plan de desarrollo, seccion 7): cronometrar el recorrido real a cada
-   destino y validar `pathDistanceStuds` y las bandas de 25/35/45/55 s.
-5. Saldar las deudas 3 y 4 (puertas).
-6. Sprint 2: mas detalle urbano (semaforos, cruces, obras, vallas), trafico y NPCs,
-   rutas alternativas por destino. Para props urbanos, considerar `insert_asset` (v2.0)
-   con IDs de la Toolbox en vez de construir todo a mano.
-7. Diferido: Round System de EGGBOUND.
+   destino, por ruta segura y por atajo, y validar `pathDistanceStuds` y las bandas de
+   25/35/45/55 s.
+5. **Rutas alternativas v2**: cubrir `House_2`, `House_3` y `House_5`, que quedaron fuera de
+   `cmd_000044`. Depende del playtest del paso 4.
+6. **Sincronizar el espejo de Rojo y mapear `StarterPlayer`** (deuda 6). Guia oficial en
+   `projects/external-tools.md` de `Roblox/creator-docs`.
+7. Saldar las deudas 3 y 4 (puertas).
+8. Sprint 2: mas detalle urbano (semaforos, cruces, obras, vallas), trafico y NPCs. Para props
+   urbanos, considerar `insert_asset` con IDs de la Toolbox en vez de construir todo a mano.
+9. Diferido: Round System de EGGBOUND.
 
 ---
 
 ## 7. Historial de la cola
 
+Verificado contra el repo el 2026-08-25 04:10Z.
+
 ```
-completed : cmd_000001..013, 015, 017..027, 029, 030, 031, 037 (este ultimo el 2026-08-24)
-failed    : cmd_000001, cmd_000016
-rejected  : cmd_000011, cmd_000012, cmd_000014
-pending   : cmd_000032, 033, 034, 035, 036, 040 (al 2026-08-24; verificar)
+completed : cmd_000001..013, 015, 017..027, 029, 030, 031, 034, 035, 036, 037,
+            038 (*), 039, 040, 041, 042, 044, 045
+failed    : cmd_000001, cmd_000016, cmd_000033
+rejected  : cmd_000011, cmd_000012, cmd_000014, cmd_000032, cmd_000043
+pending   : vacia
 retirado  : cmd_000028 (redundante, nunca ejecutado)
+
+(*) cmd_000038 no tiene .result.json. Ver deuda 8.
 ```
 
-El Sprint 1 (`cmd_000020` a `cmd_000027`) se ejecuto con 0 errores. Despues:
-`cmd_000029` fix de entorno (29/29), `cmd_000030` detalle de casas (10/10),
-`cmd_000031` fix de spawn y auditoria (8/8), `cmd_000037` (6/6, 2026-08-24).
+El Sprint 1 (`cmd_000020` a `cmd_000027`) se ejecuto con 0 errores. Despues: `cmd_000029` fix de
+entorno (29/29), `cmd_000030` detalle de casas (10/10), `cmd_000031` fix de spawn y auditoria
+(8/8), `cmd_000033` **fallido** en op_6 con `PATH_NOT_FOUND` en
+`Workspace.Delivery60.Destinations.House_5_Chimney.Smoke` y 8 de 9 ops ya aplicadas,
+`cmd_000034/035/036` casas nuevas y tienda, `cmd_000037` (6/6), `cmd_000039/040` temporizador,
+`cmd_000041/042` bucle encadenado, `cmd_000044` rutas (6/6), `cmd_000045` inspeccion (1/1).
+
+Los dos rechazos por `VALIDATION_FAILED` con el mensaje "JSON invalido" son `cmd_000032` y
+`cmd_000043`: mismo sintoma, deuda 7.
 
 ### Historial del plugin
 
 - **v1.9.4** (2026-08-24): fix PUT sin sha en `GitHub.lua` (deuda 2).
-- **v2.0.0** (2026-08-24): loader + runtime auto-actualizable (⟳ Actualizar, rollback
-  automatico); runtime dividido en `Main`/`Inspect`/`Chat`; ops nuevas en `OpsExtra`;
-  nueva op `insert_asset` (Toolbox); `Executor` fusiona `OpsExtra`; schema y
-  `plugin/README.md` actualizados. Requiere UNA reinstalacion manual del loader.
+- **v2.0.0** (2026-08-24): loader + runtime auto-actualizable (boton Actualizar, rollback
+  automatico); runtime dividido en `Main`/`Inspect`/`Chat`; ops nuevas en `OpsExtra`; nueva op
+  `insert_asset`; `Executor` fusiona `OpsExtra`. Requiere UNA reinstalacion manual del loader.
