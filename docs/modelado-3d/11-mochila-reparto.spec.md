@@ -1,176 +1,201 @@
-# Spec — `MochilaReparto` (mochila de reparto)
+# Especificación — `MochilaReparto`
 
-- **Versión**: 1.0.0
-- **Constructor**: `project/src/ReplicatedStorage/Modelos/MochilaReparto.lua`
-- **Escena de revisión**: `project/src/ServerScriptService/DemoMochilas.server.lua`
-- **Referencia**: lámina «DELIVERY BACKPACK», estilo voxel de formas cuadradas,
-  entregada como imagen adjunta en el encargo del 2026-08-25.
+**Versión**: 2.0.0
+**Referencia**: lámina «DELIVERY BACKPACK», estilo voxel de formas cuadradas
+**Constructor**: `project/src/ReplicatedStorage/Modelos/MochilaReparto.lua`
+**Escena de revisión**: `project/src/ServerScriptService/DemoMochilas.server.lua`
 
-## 1. Propósito
+La versión 2.0.0 rehace por completo la 1.0.0 después de auditar el modelo en
+un visor 3D propio. La geometría de este documento es la que se vio
+renderizada y se aprobó en tres vistas: tres cuartos, frente y lateral.
 
-Mochila insignia del repartidor: la pieza de identidad visual del juego. La
-referencia la muestra como monumento sobre bloques de piedra; este modelo es la
-versión jugable, construida íntegramente con prismas rectos para respetar el
-estilo voxel del encargo («rehazlo con formas cuadradas»).
+## Contrato de la referencia
 
-## 2. Características obligatorias (de la referencia)
-
-| Característica | Implementación |
+| Característica de la lámina | Responsable en el modelo |
 |---|---|
-| Cuerpo turquesa rectangular | `Cuerpo`, único sólido que colisiona y tiene masa |
-| Silueta escalonada voxel | Cuatro `Esquina*` orgullosas `0.04` studs y `BaseInferior` orgullosa `0.03` |
-| Tapa superior con labio | `Tapa` sobredimensionada `+0.12` studs y `LabioTapa` en el borde frontal |
-| Asa de barras cuadradas | `AsaPosteIzq/Der` y `AsaBarra` sobre la tapa |
-| Logo «6 + cronómetro + SEC» en la tapa | `SurfaceGui` `LogoFrontal` con `TextLabel`, `UICorner`, `UIStroke` y manecillas de `Frame` |
-| Cesta frontal de rejilla | Veintiocho piezas `Rejilla*`: barras de `0.05` studs, marcos gruesos y fondo sólido |
-| Tres paquetes kraft en la cesta | `PaqueteCesta1..3`, con las tapas sobresaliendo del marco |
-| Bolsillo lateral derecho con solapa | `BolsilloDerecho` + `SolapaDerecha` en la cara `+X` |
-| Protuberancia lateral izquierda | `BolsilloIzquierdo` + `SolapaIzquierda`, más plano, en `-X` |
-| Correa negra segmentada | Siete `CorreaSegmento*` sobre un arco sinusoidal por el lado `+X` |
-| Hombrera escalonada y hebilla plateada | `Hombrera` + `HombreraPaso`, `Hebilla` + `HebillaPasador` |
-| Solo formas cuadradas | Cero cuñas, esferas, cilindros ni mallas importadas |
+| Cuerpo cuadrado de esquinas escalonadas | `Cuerpo`, cuatro `EsquinaCuerpo`, `Zocalo` |
+| Solapa superior que sobresale | `Tapa`, `LabioTapa`, dos `RielTapa` |
+| Asa de dos postes y barra | dos `PosteAsa`, `BarraAsa` |
+| Logotipo «60 SEC» con cronómetro | `LogoFrontal` (`SurfaceGui` sobre la tapa) |
+| Cesta frontal de rejilla fina | `SueloCesta`, `MarcoCestaSuperior`, dos `ColumnaCesta`, barras `BarraCesta*` |
+| Paquetes de cartón asomando | tres `PaqueteCesta` de tres tonos y tres alturas |
+| Bolsillos laterales con solapa | `BolsilloLateral`, `SolapaBolsillo`, `PliegueBolsillo` |
+| Correa de hombro con hebilla | siete `SegmentoCorrea`, `Hombrera`, `HombreraCresta`, `Hebilla`, `PasadorHebilla` |
+| Broche metálico del costado | `BrocheLateral`, `BrochePasador` |
 
-## 3. Escala propuesta (la referencia no declara medidas)
+## Medidas
 
-La lámina no indica ni studs ni metros. Se aplica la regla general del proyecto
-(la misma del delivery bike): respetar la proporción objeto-avatar y recalcular
-sobre un avatar de 5 studs.
+Todo en studs. El cuerpo se centra en el origen del modelo, el frente mira
+hacia `-Z` y el pivote es el centro geométrico del cuerpo.
 
-- **Valor implementado**: cuerpo de `2.6 x 3.0 x 1.6` studs. Alto total con el
-  asa `≈ 3.55` studs; la correa con hebilla cuelga hasta `≈ 3.9` studs bajo el
-  pivote. Una mochila de repartidor real (unos 45 cm) a escala Roblox queda
-  algo mayor que el torso (2 x 2 x 1), que es justo la lectura de la lámina.
-- **Alternativa**: si la mochila es un monumento o prop de tienda en vez de
-  equipo del jugador, escalar con `tamano` sin tocar nada más; toda la
-  geometría deriva del cuerpo.
-
-Pendiente de decisión del revisor. Ver `02-registro-iteraciones.md`.
-
-## 4. Jerarquía
-
-```
-MochilaReparto (Model)                PrimaryPart = Cuerpo
-├── Cuerpo (Part)                     volumen principal, único que colisiona
-│   ├── PuntoAgarreAsa (Attachment)   centro de la barra del asa
-│   ├── PuntoSujecionEspalda (Attachment)  centro de la cara trasera
-│   └── Recoger (ProximityPrompt)     solo si conProximityPrompt = true
-├── Tapa (Part)
-│   └── LogoFrontal (SurfaceGui)      «6», cronómetro y «SEC»
-├── LabioTapa (Part)
-├── AsaPosteIzq / AsaPosteDer / AsaBarra (Part)
-├── EsquinaIzqFront .. EsquinaDerBack (Part x4)
-├── BaseInferior (Part)
-├── BolsilloDerecho / SolapaDerecha (Part)
-├── BolsilloIzquierdo / SolapaIzquierda (Part)
-├── Rejilla* (Part x28)               barras, marcos y fondo de la cesta
-├── PaqueteCesta1 .. 3 (Part)
-├── CorreaSegmento1 .. 7 (Part)
-├── Hombrera / HombreraPaso (Part)
-└── Hebilla / HebillaPasador (Part)
-```
-
-Cincuenta y siete sólidos en total, todos soldados al `Cuerpo` con
-`WeldConstraint`, `Massless = true` y colisiones desactivadas salvo el cuerpo.
-
-## 5. Parámetros de configuración
-
-| Parámetro | Por defecto | Qué controla |
+| Constante | Valor | Nota |
 |---|---|---|
-| `nombre` | `"MochilaReparto"` | Nombre del `Model` |
-| `variante` | `"Turquesa"` | Valor del atributo `Variante` |
-| `tamano` | `Vector3.new(2.6, 3.0, 1.6)` | Dimensiones del cuerpo en studs |
-| `colorCuerpo` | `56, 178, 169` | Cuerpo, tapa y bolsillos |
-| `colorDetalle` | `34, 136, 128` | Esquinas, base, asa, solapas y marcos |
-| `colorRejilla` | `34, 136, 128` | Barras de la cesta |
-| `colorCorrea` | `30, 30, 34` | Correa, hombrera y pasador |
-| `colorCarton` | `198, 154, 102` | Paquetes de la cesta |
-| `conPaquetes` | `true` | Crea o omite los tres paquetes kraft |
-| `capacidadPaquetes` | `3` | Atributo de gameplay |
-| `densidad` | `0.4` | Densidad física del cuerpo |
-| `anclado` | `false` | `Anchored` del cuerpo |
-| `colisiona` | `true` | `CanCollide` del cuerpo |
-| `conProximityPrompt` | `false` | Añade la interacción «Recoger» |
-| `pixelesPorStud` | `340` | Nitidez del logo |
-| `distanciaGui` | `60` | Distancia máxima a la que se dibuja el logo |
+| `ANCHO` | `2.6` | eje X |
+| `ALTO` | `3.0` | eje Y, sin contar asa ni correa |
+| `FONDO` | `1.6` | eje Z |
+| `HOLGURA` | `0.006` | separación anti z-fighting del proyecto |
+| `ESCALON` | `0.04` | cuánto sobresale una pieza para leerse como voxel |
+| `TAPA.alto` | `0.9` | |
+| `TAPA_TOPE` | `1.546` | `ALTO / 2 + 0.046` |
+| `TAPA_BASE` | `0.646` | `TAPA_TOPE - TAPA.alto` |
+| Altura total con asa | `≈ 2.03` sobre el centro | barra del asa en `y = 1.954` |
+| Altura total con correa | `≈ 3.9` | de `y = -1.40` a `y = 1.954` más hombrera |
 
-## 6. Paleta
+### Cesta
 
-| Nombre | RGB | Uso |
+| Constante | Valor | Derivado |
 |---|---|---|
-| `turquesa` | `56, 178, 169` | Cuerpo de la referencia |
-| `turquesaOscura` | `34, 136, 128` | Escalones, asa, solapas, rejilla |
-| `turquesaClara` | `94, 206, 195` | Reservada para acentos futuros |
-| `correa` | `30, 30, 34` | Correa y hombrera |
-| `hebilla` | `150, 156, 160` | Hebilla plateada |
-| `carton` | `198, 154, 102` | Paquetes kraft de la cesta |
-| `crema` | `240, 238, 232` | Texto y trazo del logo |
-| `rojo` | `198, 62, 52` | Centro del cronómetro |
+| `ancho` | `0.654` | `1.7004` studs |
+| `alto` | `0.367` | `1.101` studs |
+| `fondo` | `0.55` | |
+| `centroY` | `-0.25` | `-0.75` studs |
+| `barrasVerticales` | `8` | cara frontal |
+| `barrasHorizontales` | `6` | cara frontal |
+| `barrasLateralV` / `barrasLateralH` | `2` / `4` | por costado |
+| `barra` | `0.035` | grosor de barra |
 
-## 7. Tolerancias y convenciones
+La cara trasera de la cesta no se construye: queda oculta contra el cuerpo.
 
-- Separación entre piezas: `0.006` studs (`HOLGURA`).
-- Piezas de la silueta orgullosas `0.04` studs (`ESCALON`); la base, `0.03`.
-- Grosor de barra de la rejilla: `0.05` studs. Marcos: `0.08` studs.
-- Frente del modelo: `-Z` (la cesta y el logo miran a `-Z`).
-- La cara trasera de la cesta no lleva barras: queda oculta contra el cuerpo.
-- La correa se genera por código: `SEGMENTOS_CORREA` segmentos sobre un arco
-  sinusoidal con giro derivado de `cos`. Cambiar la constante rehace la curva.
-- Solo `Cuerpo` tiene `CanCollide`, `CanQuery`, `CanTouch` y masa.
-- Física: `PhysicalProperties.new(densidad, 0.6, 0.1, 1, 1)`.
+### Paquetes de la cesta
 
-## 8. Atributos publicados en el `Model`
+| Paquete | X | Ancho | Alto relativo | Sobresale del marco |
+|---|---|---|---|---|
+| Izquierdo (`cartonB`) | `-0.46` | `0.44` | `1.35` | `0.246` |
+| Central (`cartonA`) | `0.05` | `0.40` | `1.48` | `0.390` |
+| Derecho (`cartonC`) | `0.51` | `0.34` | `1.24` | `0.125` |
 
-| Atributo | Tipo | Ejemplo |
+Separación horizontal real entre paquetes: `0.09` studs.
+
+### Correa
+
+| Constante | Valor | Nota |
 |---|---|---|
-| `VersionModelo` | string | `"1.0.0"` |
-| `TipoModelo` | string | `"MochilaReparto"` |
-| `Variante` | string | `"Turquesa"` |
-| `CapacidadPaquetes` | number | `3` |
+| `segmentos` | `7` | sobre un arco sinusoidal |
+| `fraccionSuperior` | `0.42` | arranca en `y = 1.26` |
+| `alturaInferior` | `-1.15` | el segmento más bajo llega a `y = -1.40` |
+| `fraccionFondo` | `0.42` | `z = 0.672`, la correa va por la espalda |
+| `saliente` | `0.15` | `x` base `1.45`, libra la esquina en `1.34` |
+| `arco` | `0.10` | máximo alejamiento del cuerpo |
+| `giro` | `10` | grados, derivada del arco |
 
-El gameplay lee estos atributos. No debe leer nombres de piezas ni posiciones.
+## Paleta
 
-## 9. Variantes incluidas
+| Rol | Turquesa | Roja | Azul |
+|---|---|---|---|
+| `cuerpo` | `56, 178, 169` | `196, 74, 62` | `64, 118, 206` |
+| `detalle` | `34, 136, 128` | `148, 48, 40` | `44, 86, 160` |
+| `rejilla` | `30, 122, 115` | `134, 42, 35` | `38, 76, 144` |
 
-| Variante | Cambios respecto a la base |
+Colores fijos, iguales en las tres variantes:
+
+| Rol | RGB |
 |---|---|
-| `Turquesa` | Ninguno. Es la de la referencia. |
-| `Roja` | Cuerpo `196, 74, 62`, detalle y rejilla `148, 48, 40` |
-| `Azul` | Cuerpo `64, 118, 206`, detalle y rejilla `44, 86, 160` |
+| `correa` | `30, 30, 34` |
+| `hebilla` | `150, 156, 160` |
+| `metal` | `166, 171, 175` |
+| `cartonA` | `206, 164, 112` |
+| `cartonB` | `188, 145, 96` |
+| `cartonC` | `172, 130, 84` |
+| `crema` (logo) | `240, 238, 232` |
+| `rojoLogo` | `198, 62, 52` |
 
-## 10. Presupuesto
+## Material por rol
 
-| Métrica | Objetivo | Estado en 1.0.0 |
+La 1.0.0 forzaba `SmoothPlastic` en las sesenta y ocho piezas. Ahora cada rol
+declara el suyo y se resuelve con `pcall`, con alternativa si el `Enum` no
+existe en una versión antigua del motor.
+
+| Rol | Material | Alternativa |
 |---|---|---|
-| Sólidos (`Part`) | ≤ 70 | 57 |
-| Triángulos | ≤ 900 | ~684 |
-| `SurfaceGui` | ≤ 2 | 1 |
-| Instancias totales | ≤ 180 | ~135 con soldaduras y GUI |
-| Assets externos | 0 | 0 |
+| `cuerpo`, `correa` | `Fabric` | `SmoothPlastic` |
+| `detalle`, `rejilla` | `Plastic` | `SmoothPlastic` |
+| `hebilla`, `metal` | `Metal` | `SmoothPlastic` |
+| `cartonA`, `cartonB`, `cartonC` | `Cardboard` | `Wood` |
 
-## 11. Criterios de aceptación
+## Atributos
 
-- [ ] Se lee como la mochila de la lámina desde la cámara de juego.
-- [ ] La silueta escalonada se percibe sin z-fighting desde ocho ángulos.
-- [ ] El logo «60 SEC» se reconoce a simple vista; el cronómetro se distingue
-      del texto.
-- [ ] La rejilla deja ver los paquetes y estos sobresalen del marco.
-- [ ] La correa cuelga del lado derecho visto de frente, con hebilla abajo.
-- [ ] `PivotTo` mueve las cincuenta y siete piezas como un solo objeto.
-- [ ] Escala aprobada por el revisor junto a un avatar de 5 studs.
-- [ ] Veinte mochilas en pantalla no hunden los frames.
+| Atributo | Tipo | Valor |
+|---|---|---|
+| `VersionModelo` | string | `2.0.0` |
+| `Variante` | string | `Estandar`, `Express` o `Refrigerado` |
+| `Etiqueta` | string | texto legible de la variante |
+| `CapacidadPaquetes` | número | `3` |
+| `PiezasTotales` | número | contado al construir |
+| `AnchoStuds`, `AltoStuds`, `FondoStuds` | número | `2.6`, `3.0`, `1.6` |
 
-## 12. Trabajo pendiente conocido
+## Puntos de interacción
 
-1. **Escala y uso sin confirmar**: la referencia no da cifras y no declara si la
-   mochila es equipo del avatar o prop del mundo. Lleva `PuntoSujecionEspalda`
-   por si se convierte en accesorio; esa conversión (Accessory + `Attachment`
-   del torso) es trabajo futuro.
-2. La rejilla son barras de `0.05` studs: a distancia larga puede producirse
-   aliasing. Si molesta, subir el grosor a `0.07` o pasar la cesta a textura
-   cuando existan los assets.
-3. La correa es rígida y cuelga por el lado `+X`, como en la lámina. Si la
-   mochila se equipa al avatar, la correa colgaría atravesando el brazo: haría
-   falta una variante de correa trasera, que ya es geometría nueva (fase 1).
-4. El logo desaparece a más de `60` studs por `MaxDistance`. Es deliberado,
-   pero el monumento de la lámina querría un alcance mayor si se construye.
-5. Falta LOD y la sustitución del logo por textura cuando haya assets subidos.
+Todos como `Attachment` sobre el cuerpo, nunca como offsets calculados en el
+código de gameplay.
+
+| Punto | Posición | Para qué |
+|---|---|---|
+| `PuntoAgarreAsa` | barra del asa | llevar la mochila en la mano |
+| `PuntoSujecionEspalda` | `(0, 0.30, 0.8)` | equiparla al avatar |
+| `PuntoCesta` | borde superior de la cesta | insertar o sacar paquetes |
+
+## Variantes
+
+| Nombre | Paleta | Etiqueta |
+|---|---|---|
+| `Estandar` | Turquesa | Reparto estándar |
+| `Express` | Roja | Reparto exprés |
+| `Refrigerado` | Azul | Reparto refrigerado |
+
+Añadir una variante son tres líneas y no toca geometría.
+
+## Presupuesto
+
+| Métrica | Presupuesto | Real |
+|---|---|---|
+| Piezas | `70` | `68` |
+| Triángulos | `900` | `816` |
+| Colisionadores | `1` | `1` (solo `Cuerpo`) |
+| Assets externos obligatorios | `0` | `0` |
+
+El constructor comprueba el presupuesto de piezas al terminar y avisa con
+`warn` si se excede.
+
+## Criterios de aceptación
+
+1. Ninguna pieza queda por debajo de `y = -1.50`, la base del cuerpo, salvo el
+   propio zócalo.
+2. Ninguna pareja de piezas se interpenetra. En particular, correa contra
+   bolsillo lateral, hebilla contra esquina escalonada y labio contra la cara
+   del logo.
+3. Los tres paquetes se distinguen entre sí a diez studs de distancia: huecos
+   de `0.09`, tres alturas y tres tonos de cartón.
+4. Los paquetes sobresalen del marco superior de la cesta al menos `0.12`
+   studs.
+5. El logotipo cabe entero en la cara frontal de la tapa, centrado, sin que
+   ninguna pieza lo tape.
+6. Las esquinas y el zócalo son del color del cuerpo: el modelo no dibuja
+   rayas que la lámina no tiene.
+7. La tapa se lee como solapa independiente: sobresale `0.06` en X y Z y
+   `0.046` en Y.
+8. Cada rol usa su material, y ninguno queda con el material por defecto.
+9. `modelo:PivotTo(...)` mueve las sesenta y ocho piezas juntas.
+10. Cambiar una fila de `PALETA` cambia el modelo entero sin tocar otra línea.
+
+## Verificado y no verificado
+
+**Verificado por captura de pantalla** en las vistas tres cuartos, frente y
+lateral, con avatar de `5` studs como referencia de escala: silueta,
+proporciones, escalonado, legibilidad del logo, separación de paquetes,
+recorrido de la correa, posición del broche y ausencia de interpenetraciones.
+
+**No verificado**: la apariencia dentro de Roblox Studio. El visor aproxima la
+iluminación del motor, no la reproduce, y los materiales `Fabric`, `Cardboard`
+y `Metal` solo se ven de verdad con la iluminación del juego. Tampoco se ha
+medido el rendimiento con cincuenta instancias simultáneas.
+
+## Dudas abiertas
+
+1. **Uso final**. Sigue sin decidirse si es accesorio del avatar o prop del
+   mundo. Lleva `PuntoSujecionEspalda` para lo primero, pero la conversión a
+   `Accessory` es trabajo futuro.
+2. **Lado de la correa**. Cuelga por `+X`. Ahora va por la espalda, con lo que
+   estorba menos al brazo que en la 1.0.0, pero un modelo equipado pediría dos
+   correas simétricas, y eso es geometría nueva.
+3. **Rejilla contra textura**. Veintiocho barras reales cuestan presupuesto.
+   Con assets subidos, la cesta podría ser una textura con transparencia.
