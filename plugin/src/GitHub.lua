@@ -76,8 +76,27 @@ function GitHub:ReadJson(path)
 	return HttpService:JSONDecode(content), sha
 end
 
+-- Sha actual del archivo en el repo, o nil si no existe (v1.9.4 — deuda 2).
+-- El 404 llega como error de _request; el pcall lo convierte en nil.
+function GitHub:_currentSha(path)
+	local ok, file = pcall(function()
+		return self:_request("GET", "/contents/" .. path .. "?ref=" .. Config.BRANCH)
+	end)
+	if ok and type(file) == "table" and type(file.sha) == "string" then
+		return file.sha
+	end
+	return nil
+end
+
 -- Escribe (crea o actualiza) un archivo. Devuelve el nuevo sha del blob.
+-- v1.9.4 (deuda 2): si no se pasa sha, consulta el actual antes del PUT —
+-- sin él GitHub rechaza con 422 la reescritura de un archivo existente
+-- (y al aprobar, el MoveFile a medias derivaba en un 404 en cascada).
+-- Si el PUT falla con un sha en conflicto, reintenta una vez con el sha fresco.
 function GitHub:WriteFile(path, content, message, sha)
+	if sha == nil then
+		sha = self:_currentSha(path)
+	end
 	local body = {
 		message = message,
 		content = Base64.Encode(content),
@@ -86,7 +105,19 @@ function GitHub:WriteFile(path, content, message, sha)
 	if sha then
 		body.sha = sha
 	end
-	local response = self:_request("PUT", "/contents/" .. path, body)
+	local ok, response = pcall(function()
+		return self:_request("PUT", "/contents/" .. path, body)
+	end)
+	if not ok then
+		local freshSha = self:_currentSha(path)
+		if freshSha ~= nil and freshSha ~= sha then
+			-- sha obsoleto: un solo reintento con el sha fresco
+			body.sha = freshSha
+			response = self:_request("PUT", "/contents/" .. path, body)
+		else
+			error(response, 0)
+		end
+	end
 	return response and response.content and response.content.sha or nil
 end
 
