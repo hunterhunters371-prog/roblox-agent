@@ -1,200 +1,181 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang='es'>
 <head>
-<meta charset="utf-8">
-<title>Visor de modelos - Roblox Agent Bridge</title>
+<meta charset='utf-8'>
+<title>Visor de modelos Roblox - rbx-model-json/1</title>
 <style>
-  html, body { margin:0; height:100%; background:#15171c; color:#e7e7ec;
-    font-family: system-ui, Segoe UI, Roboto, sans-serif; overflow:hidden; }
-  #lienzo { position:absolute; inset:0; }
-  #panel { position:absolute; top:0; left:0; width:330px; height:100%;
-    background:rgba(20,22,27,.94); border-right:1px solid #2c2f38; padding:14px;
-    box-sizing:border-box; overflow:auto; z-index:5; }
-  h1 { font-size:15px; margin:0 0 4px; }
-  p.ayuda { font-size:11.5px; color:#9aa0ad; line-height:1.5; margin:0 0 10px; }
-  textarea { width:100%; height:150px; background:#0e1014; color:#cfd3db;
-    border:1px solid #2c2f38; border-radius:6px; font-family:ui-monospace,monospace;
-    font-size:11px; padding:8px; box-sizing:border-box; }
-  button { background:#2f6df6; color:#fff; border:0; border-radius:6px; padding:8px 12px;
-    font-size:12.5px; font-weight:600; cursor:pointer; margin:8px 6px 0 0; }
-  button.sec { background:#333845; }
-  #info { font-size:11.5px; color:#9aa0ad; margin-top:10px; line-height:1.6; }
-  #arbol { margin-top:10px; font-size:11px; font-family:ui-monospace,monospace;
-    color:#c3c8d2; line-height:1.5; }
-  #arbol div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
-  #arbol div:hover { color:#fff; background:#22252d; }
-  .cls { color:#7f8798; }
-  #aviso { color:#ffb347; font-size:11.5px; margin-top:8px; }
+*{box-sizing:border-box}
+body{margin:0;font:13px/1.5 system-ui,Segoe UI,Arial,sans-serif;background:#14161a;color:#e8eaed;display:flex;height:100vh;overflow:hidden}
+#lado{width:340px;min-width:340px;background:#1b1e24;border-right:1px solid #2c3038;display:flex;flex-direction:column}
+#lado h1{font-size:13px;margin:0;padding:12px 14px;border-bottom:1px solid #2c3038;color:#ff9628;letter-spacing:.3px}
+#zona{padding:10px 12px;border-bottom:1px solid #2c3038}
+textarea{width:100%;height:104px;background:#0e1013;color:#cfd3d8;border:1px solid #333842;border-radius:5px;padding:8px;font:11px/1.4 Consolas,monospace;resize:vertical}
+button{background:#ff9628;color:#14161a;border:0;border-radius:5px;padding:7px 13px;font-weight:700;cursor:pointer;margin-top:8px}
+button.sec{background:#333842;color:#e8eaed;margin-left:6px}
+#info{padding:9px 12px;font-size:11px;color:#9aa1ab;border-bottom:1px solid #2c3038;white-space:pre-line}
+#lista{flex:1;overflow:auto;padding:4px 0}
+.fila{padding:4px 12px;cursor:pointer;border-left:3px solid transparent;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila:hover{background:#23272e}
+.fila.on{background:#2a3038;border-left-color:#ff9628}
+.fila .c{color:#79808c;font-size:10px}
+.fila.mudo{color:#6b727c}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,.4)}
+#lienzo{flex:1;position:relative}
+#ayuda{position:absolute;left:12px;bottom:10px;font-size:11px;color:#79808c}
+#sel{position:absolute;right:12px;top:12px;background:rgba(27,30,36,.93);border:1px solid #2c3038;border-radius:6px;padding:9px 11px;font:11px/1.6 Consolas,monospace;display:none;white-space:pre-line;max-width:270px}
 </style>
 </head>
 <body>
-<div id="lienzo"></div>
-<div id="panel">
-  <h1>Visor de modelos 3D</h1>
-  <p class="ayuda">Pega aqui el bloque <b>data</b> que devuelve la operacion
-  <b>export_model</b> (formato rbx-model-json/1) o el <b>data</b> de mirror_place.
-  Se dibuja cada pieza con su posicion, rotacion, tamano y color reales.</p>
-  <textarea id="json" placeholder='{ "tipo": "modelo-3d", "model": { ... } }'></textarea>
-  <button id="dibujar">Dibujar</button>
-  <button id="ejes" class="sec">Ejes / suelo</button>
-  <div id="aviso"></div>
-  <div id="info"></div>
-  <div id="arbol"></div>
+<div id='lado'>
+<h1>VISOR DE MODELOS - rbx-model-json/1</h1>
+<div id='zona'>
+<textarea id='txt' placeholder='Pega el result.json de un export_model (o solo su bloque data) y pulsa Dibujar'></textarea>
+<button id='btn'>Dibujar</button><button id='btnDemo' class='sec'>Ejemplo</button>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.134.0/three.min.js"></script>
+<div id='info'>Sin modelo cargado.</div>
+<div id='lista'></div>
+</div>
+<div id='lienzo'><div id='sel'></div><div id='ayuda'>Arrastrar: girar - Rueda: zoom - Boton derecho: desplazar - Clic en una pieza para inspeccionarla</div></div>
+<script src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'></script>
 <script>
-// Visor minimo: convierte el volcado JSON del bridge en cajas orientadas.
-// Roblox: 1 stud = 1 unidad, Y arriba, y ToOrientation devuelve angulos en orden YXZ.
-var escena, camara, render, grupo, ayudas, radio = 30, objetivo = new THREE.Vector3();
-var girando = false, gx = 0, gy = 0, theta = 0.7, phi = 0.9;
-
-function iniciar() {
-  escena = new THREE.Scene();
-  escena.background = new THREE.Color(0x15171c);
-  camara = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 5000);
-  render = new THREE.WebGLRenderer({ antialias: true });
-  render.setSize(window.innerWidth, window.innerHeight);
-  render.setPixelRatio(window.devicePixelRatio || 1);
-  document.getElementById('lienzo').appendChild(render.domElement);
-  escena.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.0));
-  var sol = new THREE.DirectionalLight(0xffffff, 0.85);
-  sol.position.set(60, 120, 90);
-  escena.add(sol);
-  ayudas = new THREE.Group();
-  ayudas.add(new THREE.GridHelper(200, 40, 0x39404e, 0x262b34));
-  ayudas.add(new THREE.AxesHelper(8));
-  escena.add(ayudas);
-  grupo = new THREE.Group();
-  escena.add(grupo);
-  window.addEventListener('resize', function () {
-    camara.aspect = window.innerWidth / window.innerHeight;
-    camara.updateProjectionMatrix();
-    render.setSize(window.innerWidth, window.innerHeight);
-  });
-  var lienzo = render.domElement;
-  lienzo.addEventListener('mousedown', function (e) { girando = true; gx = e.clientX; gy = e.clientY; });
-  window.addEventListener('mouseup', function () { girando = false; });
-  window.addEventListener('mousemove', function (e) {
-    if (!girando) return;
-    phi -= (e.clientX - gx) * 0.008;
-    theta = Math.max(0.05, Math.min(Math.PI - 0.05, theta - (e.clientY - gy) * 0.008));
-    gx = e.clientX; gy = e.clientY;
-  });
-  lienzo.addEventListener('wheel', function (e) {
-    radio = Math.max(3, Math.min(1200, radio * (e.deltaY > 0 ? 1.1 : 0.9)));
-    e.preventDefault();
-  }, { passive: false });
-  animar();
+var esc=new THREE.Scene();esc.background=new THREE.Color(0x14161a);
+var cont=document.getElementById('lienzo');
+var cam=new THREE.PerspectiveCamera(50,1,0.1,5000);
+var rnd=new THREE.WebGLRenderer({antialias:true});cont.appendChild(rnd.domElement);
+var ctrl=new THREE.OrbitControls(cam,rnd.domElement);ctrl.enableDamping=true;
+esc.add(new THREE.HemisphereLight(0xffffff,0x40454f,1.05));
+var dl=new THREE.DirectionalLight(0xffffff,0.55);dl.position.set(40,90,30);esc.add(dl);
+var suelo=new THREE.GridHelper(240,48,0x39404a,0x252931);esc.add(suelo);
+var grupo=null,nodos=[],piezas=[],sel=-1;
+function redim(){var w=cont.clientWidth,h=cont.clientHeight;cam.aspect=w/h;cam.updateProjectionMatrix();rnd.setSize(w,h);}
+window.addEventListener('resize',redim);
+(function bucle(){requestAnimationFrame(bucle);ctrl.update();rnd.render(esc,cam);})();
+function nom(n){return n.n||n.name||'?';}
+function cls(n){return n.c||n.class||'';}
+// Acepta el result.json entero, el bloque data, o un nodo suelto.
+function hallar(o,prof){
+ if(!o||typeof o!=='object'||prof>8)return null;
+ if(o.model&&typeof o.model==='object')return{raiz:o.model,path:o.path,nodes:o.nodes,trunc:o.truncated};
+ if(o.tree&&typeof o.tree==='object')return{raiz:o.tree,path:o.root,nodes:o.nodes,trunc:o.truncated};
+ if((o.n||o.name)&&(o.pos||o.children))return{raiz:o};
+ for(var k in o){var r=hallar(o[k],prof+1);if(r)return r;}
+ return null;
 }
-
-function animar() {
-  requestAnimationFrame(animar);
-  camara.position.set(
-    objetivo.x + radio * Math.sin(theta) * Math.cos(phi),
-    objetivo.y + radio * Math.cos(theta),
-    objetivo.z + radio * Math.sin(theta) * Math.sin(phi)
-  );
-  camara.lookAt(objetivo);
-  render.render(escena, camara);
+function recorre(n,ruta,prof){
+ var nb=nom(n),cl=cls(n),comp=ruta?ruta+'.'+nb:nb;
+ nodos.push({nodo:n,nombre:nb,clase:cl,ruta:comp,prof:prof});
+ var h=n.children;
+ if(h)for(var i=0;i<h.length;i++)recorre(h[i],comp,prof+1);
 }
-
-// Materiales translucidos para lo que no colisiona, para distinguir chapa de estructura.
-function materialDe(nodo) {
-  var c = nodo.color || [163, 162, 165];
-  var col = new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255);
-  var op = 1;
-  if (typeof nodo.transp === 'number' && nodo.transp > 0) op = 1 - nodo.transp;
-  if (nodo.canCollide === false) op = Math.min(op, 0.55);
-  var m = new THREE.MeshLambertMaterial({ color: col });
-  if (op < 1) { m.transparent = true; m.opacity = op; }
-  return m;
+function dibuja(datos){
+ if(grupo){esc.remove(grupo);}
+ grupo=new THREE.Group();nodos=[];piezas=[];sel=-1;
+ recorre(datos.raiz,'',0);
+ var caja=new THREE.Box3(),minY=1e9;
+ for(var i=0;i<nodos.length;i++){
+  var it=nodos[i],n=it.nodo;
+  if(!(n.pos&&n.size))continue;
+  var g=new THREE.BoxGeometry(n.size[0],n.size[1],n.size[2]);
+  var col=n.color?new THREE.Color(n.color[0]/255,n.color[1]/255,n.color[2]/255):new THREE.Color(0x8891a0);
+  var op=1-(n.transp||0);
+  if(n.canCollide===false)op=Math.min(op,0.42);
+  var m=new THREE.MeshLambertMaterial({color:col,transparent:op<1,opacity:op});
+  var cubo=new THREE.Mesh(g,m);
+  cubo.position.set(n.pos[0],n.pos[1],n.pos[2]);
+  if(n.rot){cubo.rotation.order='YXZ';cubo.rotation.set(n.rot[0]*Math.PI/180,n.rot[1]*Math.PI/180,n.rot[2]*Math.PI/180);}
+  cubo.add(new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.32})));
+  grupo.add(cubo);
+  it.malla=cubo;it.op=op;it.col=col.getHex();
+  piezas.push(it);
+  caja.expandByObject(cubo);
+  minY=Math.min(minY,n.pos[1]-n.size[1]/2);
+ }
+ esc.add(grupo);
+ var texto='Sin geometria: ningun nodo trae pos y size.';
+ if(piezas.length){
+  var c=caja.getCenter(new THREE.Vector3()),t=caja.getSize(new THREE.Vector3());
+  var r=Math.max(t.x,t.y,t.z);
+  ctrl.target.copy(c);
+  cam.position.set(c.x+r*1.25,c.y+r*0.85,c.z+r*1.55);
+  cam.near=Math.max(0.05,r/300);cam.far=r*90;cam.updateProjectionMatrix();
+  suelo.position.set(c.x,0,c.z);
+  texto=(datos.path||'modelo')+'\n'+piezas.length+' pieza(s) dibujada(s) de '+nodos.length+' nodo(s)'
+   +'\ntamano: '+t.x.toFixed(2)+' x '+t.y.toFixed(2)+' x '+t.z.toFixed(2)+' studs'
+   +'\nbase mas baja: y '+minY.toFixed(2)+(minY<0?'  (POR DEBAJO DEL SUELO)':'')
+   +(datos.trunc?'\nAVISO: export truncado, sube max_nodes':'');
+ }
+ document.getElementById('info').textContent=texto;
+ pintaLista();redim();
 }
-
-var cuenta, piezas, sinGeo, cajaMin, cajaMax;
-
-function recorrer(nodo, ruta) {
-  if (!nodo) return;
-  cuenta++;
-  var nombre = (ruta ? ruta + '.' : '') + (nodo.n || nodo.name || '?');
-  var clase = nodo.c || nodo.class || '';
-  var size = nodo.size, pos = nodo.pos;
-  if (size && pos) {
-    piezas++;
-    var geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
-    var malla = new THREE.Mesh(geo, materialDe(nodo));
-    malla.position.set(pos[0], pos[1], pos[2]);
-    if (nodo.rot) {
-      malla.rotation.order = 'YXZ';
-      malla.rotation.set(
-        nodo.rot[0] * Math.PI / 180,
-        nodo.rot[1] * Math.PI / 180,
-        nodo.rot[2] * Math.PI / 180
-      );
-    }
-    malla.userData.nombre = nombre;
-    malla.userData.clase = clase;
-    grupo.add(malla);
-    var borde = new THREE.LineSegments(
-      new THREE.EdgesGeometry(geo),
-      new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 })
-    );
-    borde.position.copy(malla.position);
-    borde.rotation.copy(malla.rotation);
-    grupo.add(borde);
-    for (var i = 0; i < 3; i++) {
-      cajaMin[i] = Math.min(cajaMin[i], pos[i] - size[i] / 2);
-      cajaMax[i] = Math.max(cajaMax[i], pos[i] + size[i] / 2);
-    }
-    var fila = document.createElement('div');
-    var union = '';
-    if (nodo.Part0 || nodo.Part1) union = ' [' + (nodo.Part0 || '?') + ' <-> ' + (nodo.Part1 || '?') + ']';
-    fila.innerHTML = (nodo.n || '?') + ' <span class="cls">' + clase +
-      ' ' + size.join('x') + union + '</span>';
-    fila.onclick = function () { objetivo.set(pos[0], pos[1], pos[2]); radio = 14; };
-    document.getElementById('arbol').appendChild(fila);
-  } else if (clase) {
-    sinGeo.push((nodo.n || '?') + ' (' + clase + ')' +
-      (nodo.Part0 || nodo.Part1 ? ' ' + (nodo.Part0 || '?') + ' <-> ' + (nodo.Part1 || '?') : ''));
-  }
-  var hijos = nodo.children || [];
-  for (var j = 0; j < hijos.length; j++) recorrer(hijos[j], nombre);
+function pintaLista(){
+ var L=document.getElementById('lista');L.innerHTML='';
+ for(var i=0;i<nodos.length;i++){
+  var it=nodos[i],d=document.createElement('div');
+  d.className='fila'+(it.malla?'':' mudo');
+  var sw='';
+  if(it.malla)sw="<span class='sw' style='background:#"+('000000'+it.col.toString(16)).slice(-6)+"'></span>";
+  d.innerHTML=sw+new Array(it.prof+1).join('  ')+it.nombre+" <span class='c'>"+it.clase+'</span>';
+  d.onclick=(function(k){return function(){marca(k);};})(i);
+  L.appendChild(d);it.fila=d;
+ }
 }
-
-function dibujar() {
-  var aviso = document.getElementById('aviso');
-  aviso.textContent = '';
-  document.getElementById('arbol').innerHTML = '';
-  while (grupo.children.length) grupo.remove(grupo.children[0]);
-  var crudo = document.getElementById('json').value.trim();
-  if (!crudo) { aviso.textContent = 'Pega primero el JSON.'; return; }
-  var datos;
-  try { datos = JSON.parse(crudo); }
-  catch (e) { aviso.textContent = 'JSON invalido: ' + e.message; return; }
-  // Acepta el data completo, el envoltorio del result.json o el nodo raiz suelto.
-  var raiz = datos.model || datos.tree || (datos.data && (datos.data.model || datos.data.tree)) || datos;
-  cuenta = 0; piezas = 0; sinGeo = [];
-  cajaMin = [1e9, 1e9, 1e9]; cajaMax = [-1e9, -1e9, -1e9];
-  recorrer(raiz, '');
-  var info = piezas + ' pieza(s) dibujada(s) de ' + cuenta + ' nodo(s).';
-  if (piezas > 0) {
-    var cx = (cajaMin[0] + cajaMax[0]) / 2, cy = (cajaMin[1] + cajaMax[1]) / 2, cz = (cajaMin[2] + cajaMax[2]) / 2;
-    objetivo.set(cx, cy, cz);
-    var ancho = Math.max(cajaMax[0] - cajaMin[0], cajaMax[1] - cajaMin[1], cajaMax[2] - cajaMin[2]);
-    radio = Math.max(6, ancho * 2.1);
-    info += ' Dimensiones ' + (cajaMax[0] - cajaMin[0]).toFixed(2) + ' x ' +
-      (cajaMax[1] - cajaMin[1]).toFixed(2) + ' x ' + (cajaMax[2] - cajaMin[2]).toFixed(2) + ' studs.' +
-      ' Suelo del modelo en y=' + cajaMin[1].toFixed(2) + '.';
-  } else {
-    aviso.textContent = 'Ningun nodo traia pos + size: ese volcado no tiene geometria.';
-  }
-  if (datos.truncated) aviso.textContent = 'AVISO: el volcado venia TRUNCADO (sube max_nodes).';
-  if (sinGeo.length) info += '<br><br>Sin geometria (' + sinGeo.length + '): ' + sinGeo.slice(0, 40).join(', ');
-  document.getElementById('info').innerHTML = info;
+function marca(i){
+ for(var k=0;k<nodos.length;k++){
+  var it=nodos[k];
+  if(it.fila)it.fila.className='fila'+(it.malla?'':' mudo');
+  if(it.malla){it.malla.material.color.setHex(it.col);it.malla.material.opacity=it.op;it.malla.material.transparent=it.op<1;}
+ }
+ sel=i;var it=nodos[i];
+ if(it.fila){it.fila.className='fila on'+(it.malla?'':' mudo');it.fila.scrollIntoView({block:'nearest'});}
+ var c=document.getElementById('sel'),n=it.nodo;
+ if(it.malla){it.malla.material.color.setHex(0xff9628);it.malla.material.opacity=1;it.malla.material.transparent=false;}
+ var t=it.ruta+'\n'+it.clase;
+ if(n.pos)t+='\npos   '+n.pos.join(', ');
+ if(n.size)t+='\nsize  '+n.size.join(', ');
+ if(n.rot)t+='\nrot   '+n.rot.join(', ')+' (grados)';
+ if(n.extents)t+='\next   '+n.extents.join(', ');
+ if(n.mat)t+='\nmat   '+n.mat;
+ if(n.color)t+='\ncolor '+n.color.join(', ');
+ if(n.mesh)t+='\nmesh  '+n.mesh;
+ if(n.transp)t+='\ntransp '+n.transp;
+ if(n.anchored===false)t+='\nsin anclar';
+ if(n.canCollide===false)t+='\nsin colision';
+ if(n.massless)t+='\nsin masa';
+ if(n.Part0||n.Part1)t+='\nsuelda '+(n.Part0||'?')+' <-> '+(n.Part1||'?');
+ if(n.Attachment0||n.Attachment1)t+='\nune '+(n.Attachment0||'?')+' <-> '+(n.Attachment1||'?');
+ if(n.lines)t+='\n'+n.lines+' lineas de codigo';
+ if(n.attrs){for(var a in n.attrs)t+='\n@'+a+' = '+n.attrs[a];}
+ c.textContent=t;c.style.display='block';
 }
-
-document.getElementById('dibujar').onclick = dibujar;
-document.getElementById('ejes').onclick = function () { ayudas.visible = !ayudas.visible; };
-iniciar();
+var ray=new THREE.Raycaster(),pt=new THREE.Vector2();
+rnd.domElement.addEventListener('click',function(e){
+ if(!grupo)return;
+ var r=rnd.domElement.getBoundingClientRect();
+ pt.x=((e.clientX-r.left)/r.width)*2-1;pt.y=-((e.clientY-r.top)/r.height)*2+1;
+ ray.setFromCamera(pt,cam);
+ var h=ray.intersectObjects(grupo.children,false);
+ if(!h.length)return;
+ for(var i=0;i<nodos.length;i++)if(nodos[i].malla===h[0].object){marca(i);return;}
+});
+document.getElementById('btn').onclick=function(){
+ var v=document.getElementById('txt').value.trim();
+ if(!v){alert('Pega primero el JSON del export.');return;}
+ var o;try{o=JSON.parse(v);}catch(err){alert('El texto no es JSON valido: '+err.message);return;}
+ var d=hallar(o,0);
+ if(!d){alert('No encuentro un modelo dentro de ese JSON. Pega el result.json de un export_model o su bloque data.');return;}
+ dibuja(d);
+};
+document.getElementById('btnDemo').onclick=function(){
+ var demo={tipo:'modelo-3d',formato:'rbx-model-json/1',path:'Ejemplo.Camion',unidades:'studs',model:{n:'Camion',c:'Model',children:[
+ {n:'Chassis',c:'Part',pos:[0,2.22,0],size:[6,0.5,14],color:[70,74,82],mat:'Metal',anchored:false},
+ {n:'CabinRoof',c:'Part',pos:[0,6.27,-1.77],size:[6,0.4,5.3],color:[255,150,40],mat:'SmoothPlastic',anchored:false,canCollide:false,massless:true},
+ {n:'CargoSideL',c:'Part',pos:[-2.95,5.25,3.88],size:[0.3,3.4,6.2],color:[255,150,40],mat:'SmoothPlastic',anchored:false,canCollide:false,massless:true},
+ {n:'Rueda',c:'Part',pos:[4,1.62,-5.3],size:[3,3,3],color:[26,26,28],mat:'SmoothPlastic',anchored:false}]}};
+ document.getElementById('txt').value=JSON.stringify(demo);
+ document.getElementById('btn').click();
+};
+redim();
 </script>
 </body>
 </html>
