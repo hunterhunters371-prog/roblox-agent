@@ -25,28 +25,53 @@ Si no lo borras tendrás **dos** paneles y dos barras a la vez.
 2. Borra cualquier `RobloxAgentBridge*.rbxm` / `.rbxmx` que haya ahí.
 3. **Cierra Studio** (así suelta el archivo y no lo vuelve a escribir al salir).
 
+Comprueba también **PLUGINS → Manage Plugins** por si hubiera una copia instalada desde la
+Creator Store.
+
 ---
 
 ## Paso 1 — instalar el loader
 
-### Opción A — sin terminal (usando lo que Rojo ya sincronizó)
+### Opción A — sin Rojo ni terminal (recomendada, 30 segundos)
 
-1. Abre Studio y conecta Rojo como siempre.
-2. En el **Explorador**, busca el objeto `RobloxAgentBridge` que Rojo dejó en el place.
-3. Clic derecho sobre él → **Save as Local Plugin…** → nombre `RobloxAgentBridge` → Guardar.
-4. **Rojo → Disconnect** y **borra** ese `RobloxAgentBridge` del place (si no, se guarda dentro
-   del juego y acaba publicado como basura).
+1. Activa **Game Settings → Security → Allow HTTP Requests** (y *Enable Studio Access to API
+   Services*). El Bridge los necesita igual.
+2. Abre la **Command Bar** (View → Command Bar) y pega esta línea:
 
-El plugin aparece al instante, sin reiniciar Studio.
+```lua
+local s = Instance.new("Script") s.Name = "RobloxAgentBridge" s.Source = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/hunterhunters371-prog/roblox-agent/main/plugin/src/init.server.lua") s.Parent = game:GetService("ServerStorage")
+```
 
-### Opción B — con terminal (más limpia, 1 solo archivo)
+3. En el Explorador, **clic derecho** sobre `ServerStorage → RobloxAgentBridge` →
+   **Save as Local Plugin…** → nombre `RobloxAgentBridge` → Guardar.
+4. **Borra** ese Script de `ServerStorage` (ya no hace falta; si lo dejas se guarda dentro del juego).
+
+Si el paso 2 falla por HTTP, abre `plugin/src/init.server.lua` en tu editor, copia todo y pégalo
+a mano en el `Source` de un `Script` nuevo llamado `RobloxAgentBridge`; luego sigue en el paso 3.
+
+### Opción B — desde lo que Rojo ya sincronizó
+
+Con Rojo conectado, clic derecho sobre el `RobloxAgentBridge` que aparece en el place →
+**Save as Local Plugin…**. Después **Disconnect** y **borra** ese objeto del place.
+
+### Opción C — con terminal
 
 ```bash
 cd <carpeta del repo>
+rokit install
 rojo build plugin/loader.project.json -o RobloxAgentBridge.rbxm
 ```
 
 Mueve `RobloxAgentBridge.rbxm` a la carpeta de plugins del Paso 0 y abre Studio.
+
+**Si ves `ERROR Failed to find tool 'rojo' in any project manifest file`:** el `rojo` de tu PATH
+es un atajo de **Rokit**, que exige un `rokit.toml` que declare la herramienta. Dos salidas:
+
+- ejecutar el comando **desde la raíz del repo** (ya incluye `rokit.toml`) tras `rokit install`; o
+- instalarlo global: `rokit add --global rojo-rbx/rojo`.
+
+Y recuerda que las rutas son relativas al repo: en `C:\Users\dayal\` no existe
+`plugin/loader.project.json`.
 
 `loader.project.json` construye **solo** `init.server.lua` (el loader). El resto del runtime
 (`Main`, `UI`, `Ops`…) lo descarga el propio loader desde GitHub, así que no hay módulos
@@ -57,6 +82,9 @@ pero **no** lo uses para instalar.
 
 ## Paso 2 — verificar que sí entró (30 segundos)
 
+La primera vez Studio pedirá permiso de **inyección de scripts** (el loader escribe el `Source`
+de los módulos que descarga) y de **HTTP**: aceptar ambos, o no podrá construir el runtime.
+
 Deben cumplirse las cuatro:
 
 1. En la barra de herramientas hay **dos** botones: `Agent Bridge` y **`⟳ Actualizar`**.
@@ -66,9 +94,6 @@ Deben cumplirse las cuatro:
    de `UI.lua`, y por eso mostraba una versión antigua aunque hubiera actualizado).
 4. En la **Output** de Studio: `[RBX Bridge] runtime v2.0.1 en marcha (loader v2.1)`.
 
-Requisitos del place: **Game Settings → Security → Allow HTTP Requests** y **Enable Studio
-Access to API Services** activados.
-
 ---
 
 ## A partir de ahora
@@ -76,7 +101,7 @@ Access to API Services** activados.
 - Publico una versión nueva → pulsas **`⟳ Actualizar`** (o abres el panel; también comprueba solo
   cada 5 min con el panel abierto). Se reinicia en caliente, sin reinstalar nada.
 - Si no hay nada nuevo, el título avisa `v2.0.1 · ya al día` unos segundos.
-- Si la versión nueva estuviera rota, el loader **vuelve sola a la anterior** (rollback) y lo
+- Si la versión nueva estuviera rota, el loader **vuelve solo a la anterior** (rollback) y lo
   escribe en la Output.
 - **Solo** hay que reinstalar a mano si cambia `plugin/src/init.server.lua` (el loader). Se avisará
   en el README y en la nota de sesión.

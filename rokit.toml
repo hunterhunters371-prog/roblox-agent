@@ -1,0 +1,7 @@
+# Manifiesto de herramientas (Rokit).
+# Sin este archivo, el atajo `rojo` de Rokit falla con:
+#   ERROR Failed to find tool 'rojo' in any project manifest file.
+# Uso: desde la raiz del repo -> `rokit install` y ya puedes usar `rojo`.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
