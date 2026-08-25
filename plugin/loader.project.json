@@ -1,0 +1,6 @@
+{
+	"name": "RobloxAgentBridge",
+	"tree": {
+		"$path": "src/init.server.lua"
+	}
+}
