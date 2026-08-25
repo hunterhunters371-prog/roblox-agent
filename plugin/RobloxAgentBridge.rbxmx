@@ -1,0 +1,285 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<Item class="Script" referent="RBX0">
+		<Properties>
+			<string name="Name">RobloxAgentBridge</string>
+			<bool name="Disabled">false</bool>
+			<ProtectedString name="Source"><![CDATA[-- Roblox Agent Bridge — LOADER (v2.1).
+-- Copia precompilada para instalar sin rojo ni terminal: deja este archivo .rbxmx en la
+-- carpeta de plugins de Studio (PLUGINS -> Plugins Folder) y listo.
+-- El runtime completo (Main, UI, Ops, ...) se descarga desde GitHub y se actualiza en
+-- caliente con el boton "Actualizar": las versiones nuevas NO requieren reinstalar.
+-- Fuente canonica de este archivo: plugin/src/init.server.lua
+
+local HttpService = game:GetService("HttpService")
+
+local OWNER = "hunterhunters371-prog"
+local REPO = "roblox-agent"
+local BRANCH = "main"
+local RAW_BASE = ("https://raw.githubusercontent.com/%s/%s/%s/plugin/"):format(OWNER, REPO, BRANCH)
+local LOADER_VERSION = "2.1"
+local RECHECK_SECONDS = 300
+
+-- ---------- toolbar + widget (permanentes) ----------
+
+local toolbar = plugin:CreateToolbar("Roblox Agent Bridge")
+local openButton = toolbar:CreateButton("Agent Bridge", "Abrir el panel de Roblox Agent Bridge", "")
+openButton.ClickableWhenViewportHidden = true
+local updateButton = toolbar:CreateButton(
+	"⟳ Actualizar",
+	"Descargar la última versión del plugin desde GitHub y reiniciarlo en caliente",
+	""
+)
+updateButton.ClickableWhenViewportHidden = true
+
+local widgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Right,
+	false,
+	false,
+	440,
+	560,
+	340,
+	480
+)
+local widget = plugin:CreateDockWidgetPluginGui("RobloxAgentBridge", widgetInfo)
+widget.Title = "Roblox Agent Bridge"
+openButton.Click:Connect(function()
+	widget.Enabled = not widget.Enabled
+end)
+
+local function setTitulo(extra)
+	widget.Title = "Roblox Agent Bridge" .. (extra and (" — " .. extra) or "")
+end
+
+-- El chip de version de la cabecera vive dentro de UI.lua con un valor fijo ("v1.8"...).
+-- Tras arrancar el runtime lo reescribimos con la version realmente en marcha.
+local function sincronizarChip(version)
+	if not version then
+		return
+	end
+	for _, descendant in ipairs(widget:GetDescendants()) do
+		if descendant:IsA("TextLabel") and descendant.Text:match("^v%d") then
+			descendant.Text = "v" .. version
+		end
+	end
+end
+
+-- ---------- estado del runtime vivo ----------
+
+local runtimeFolder = nil
+local mainModule = nil
+local stopActual = nil
+local versionActual = nil
+local actualizando = false
+local ultimaComprobacion = 0
+local descargado = false
+
+local actualizar
+
+-- ---------- descarga ----------
+
+local function fetchText(relPath)
+	-- el CDN de raw cachea unos minutos: el query lo evita. os.time() cambia entre sesiones
+	-- de Studio (os.clock() no) y el random cubre dos intentos en el mismo segundo.
+	local url = ("%s%s?t=%d_%d"):format(RAW_BASE, relPath, os.time(), math.random(0, 999999))
+	local ok, body = pcall(function()
+		return HttpService:GetAsync(url, true)
+	end)
+	if not ok then
+		return nil, tostring(body)
+	end
+	return body
+end
+
+local function construirRuntime(files)
+	local staging = Instance.new("Folder")
+	staging.Name = "RuntimeStaging"
+	staging.Parent = script
+	for _, fileName in ipairs(files) do
+		local source, err = fetchText("src/" .. tostring(fileName))
+		if not source then
+			staging:Destroy()
+			return nil, ("no se pudo descargar %s: %s"):format(tostring(fileName), tostring(err))
+		end
+		local module = Instance.new("ModuleScript")
+		module.Name = (tostring(fileName):gsub("%.lua$", ""))
+		module.Source = source
+		module.Parent = staging
+	end
+	return staging
+end
+
+-- ---------- interfaz minima de emergencia (cuando no hay runtime) ----------
+
+local function mostrarFallback(detalle, abrir)
+	for _, child in ipairs(widget:GetChildren()) do
+		child:Destroy()
+	end
+	local frame = Instance.new("Frame")
+	frame.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.Parent = widget
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(230, 230, 235)
+	label.TextWrapped = true
+	label.TextSize = 13
+	label.Font = Enum.Font.Gotham
+	label.Position = UDim2.new(0, 12, 0, 12)
+	label.Size = UDim2.new(1, -24, 0, 170)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Top
+	label.Text = "No se pudo descargar el runtime del Bridge.\n\n"
+		.. tostring(detalle)
+		.. "\n\nComprueba tu conexión y que el place tenga Allow HTTP Requests y Enable Studio Access to API Services (Game Settings > Security), y pulsa Reintentar."
+	label.Parent = frame
+	local boton = Instance.new("TextButton")
+	boton.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	boton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	boton.Text = "Reintentar"
+	boton.TextSize = 13
+	boton.Font = Enum.Font.GothamBold
+	boton.Position = UDim2.new(0, 12, 0, 190)
+	boton.Size = UDim2.new(0, 110, 0, 30)
+	boton.Parent = frame
+	boton.MouseButton1Click:Connect(function()
+		task.spawn(function()
+			actualizar(true)
+		end)
+	end)
+	if abrir then
+		widget.Enabled = true
+	end
+end
+
+-- ---------- actualizacion en caliente ----------
+
+actualizar = function(manual)
+	if actualizando then
+		return
+	end
+	actualizando = true
+	ultimaComprobacion = os.time()
+	local ok, err = pcall(function()
+		setTitulo("comprobando versión…")
+		local manifestRaw, fetchErr = fetchText("version.json")
+		if not manifestRaw then
+			error("version.json inaccesible: " .. tostring(fetchErr), 0)
+		end
+		local okJson, manifest = pcall(function()
+			return HttpService:JSONDecode(manifestRaw)
+		end)
+		if not okJson or type(manifest) ~= "table" or type(manifest.files) ~= "table" or type(manifest.version) ~= "string" then
+			error("version.json con formato inesperado", 0)
+		end
+		if runtimeFolder and manifest.version == versionActual then
+			sincronizarChip(versionActual)
+			if manual then
+				setTitulo("v" .. versionActual .. " · ya al día")
+				task.delay(4, function()
+					if versionActual and not actualizando then
+						setTitulo("v" .. versionActual)
+					end
+				end)
+			else
+				setTitulo("v" .. versionActual)
+			end
+			return
+		end
+		setTitulo("descargando v" .. manifest.version .. "…")
+		local staging, buildErr = construirRuntime(manifest.files)
+		if not staging then
+			error(buildErr, 0)
+		end
+		local okReq, mainOrErr = pcall(function()
+			return require(staging.Main)
+		end)
+		if not okReq or type(mainOrErr) ~= "table" or type(mainOrErr.start) ~= "function" then
+			staging:Destroy()
+			error("el Main.lua descargado no carga: " .. tostring(okReq and "falta start()" or mainOrErr), 0)
+		end
+		local oldFolder, oldMain, oldVersion = runtimeFolder, mainModule, versionActual
+		if stopActual then
+			pcall(stopActual)
+			stopActual = nil
+		end
+		staging.Name = "Runtime"
+		local ctx = { plugin = plugin, widget = widget, version = manifest.version, loader = LOADER_VERSION }
+		local okStart, stopOrErr = pcall(function()
+			return mainOrErr.start(ctx)
+		end)
+		if not okStart then
+			staging:Destroy()
+			runtimeFolder, mainModule, versionActual = nil, nil, nil
+			if oldFolder and oldMain then
+				local okBack, stopBack = pcall(function()
+					return oldMain.start({ plugin = plugin, widget = widget, version = oldVersion, loader = LOADER_VERSION })
+				end)
+				if okBack then
+					stopActual = stopBack
+					runtimeFolder, mainModule, versionActual = oldFolder, oldMain, oldVersion
+					sincronizarChip(oldVersion)
+				end
+			end
+			error("el runtime nuevo falló al arrancar (rollback aplicado): " .. tostring(stopOrErr), 0)
+		end
+		if oldFolder then
+			pcall(function()
+				oldFolder:Destroy()
+			end)
+		end
+		stopActual = stopOrErr
+		runtimeFolder = staging
+		mainModule = mainOrErr
+		versionActual = manifest.version
+		setTitulo("v" .. manifest.version)
+		sincronizarChip(manifest.version)
+		print(("[RBX Bridge] runtime v%s en marcha (loader v%s)"):format(manifest.version, LOADER_VERSION))
+	end)
+	actualizando = false
+	if not ok then
+		setTitulo(versionActual and ("v" .. versionActual .. " · falló la actualización") or "actualización falló")
+		warn("[RBX Bridge loader] " .. tostring(err))
+		if runtimeFolder == nil then
+			mostrarFallback(tostring(err), manual == true)
+		end
+	end
+end
+
+updateButton.Click:Connect(function()
+	task.spawn(function()
+		actualizar(true)
+	end)
+end)
+
+widget:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if widget.Enabled and os.time() - ultimaComprobacion > RECHECK_SECONDS then
+		task.spawn(function()
+			actualizar(false)
+		end)
+	end
+end)
+
+task.spawn(function()
+	while not descargado do
+		task.wait(60)
+		if not descargado and widget.Enabled and not actualizando and os.time() - ultimaComprobacion > RECHECK_SECONDS then
+			actualizar(false)
+		end
+	end
+end)
+
+plugin.Unloading:Connect(function()
+	descargado = true
+	if stopActual then
+		pcall(stopActual)
+	end
+end)
+
+task.spawn(function()
+	actualizar(false)
+end)
+]]></ProtectedString>
+		</Properties>
+	</Item>
+</roblox>
