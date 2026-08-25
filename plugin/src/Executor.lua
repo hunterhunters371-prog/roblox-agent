@@ -2,6 +2,7 @@
 -- y gestiona waypoints de Undo/Redo (ChangeHistoryService).
 -- v1.2: pasa el id del comando a los handlers (para la etiqueta _RBX_Bridge).
 -- v2.0: fusiona OpsExtra (ops nuevas, p. ej. insert_asset) en el registro de Ops.
+-- v3.0: lint_scripts y mirror_place cuentan como solo lectura (sin waypoint).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -18,7 +19,11 @@ end
 local Executor = {}
 
 local function isReadOnly(opName)
-	return opName == "inspect_tree" or opName == "inspect_instance" or opName == "find_instances"
+	return opName == "inspect_tree"
+		or opName == "inspect_instance"
+		or opName == "find_instances"
+		or opName == "lint_scripts" -- v3.0
+		or opName == "mirror_place" -- v3.0
 end
 
 -- Dry-run: valida resolución de paths sin tocar el DataModel.

@@ -1,7 +1,9 @@
--- Runtime principal del Roblox Agent Bridge (v2.0).
+-- Runtime principal del Roblox Agent Bridge (v2.0/v3.0).
 -- NO se instala a mano: lo descarga y arranca el loader (init.server.lua), que puede
 -- sustituirlo en caliente al pulsar "⟳ Actualizar". start(ctx) monta la UI y devuelve
 -- stop() para esa actualización en caliente. (Historia v1.1–v1.8: ver README y git.)
+-- v3.0: AutoSense — lint automático de scripts (lint/findings.json) y espejo del
+-- estado del place (place/mirror.json), publicados solo cuando algo cambia.
 --
 -- ctx = { plugin, widget, version, loader }
 
@@ -15,6 +17,7 @@ local Executor = require(script.Parent.Executor)
 local UI = require(script.Parent.UI)
 local Inspect = require(script.Parent.Inspect)
 local Chat = require(script.Parent.Chat)
+local AutoSense = require(script.Parent.AutoSense)
 
 local Main = {}
 
@@ -60,8 +63,8 @@ function Main.start(ctx)
 		return true
 	end
 
-	-- Entorno compartido con Inspect y Chat. ui/github se asignan después del init,
-	-- así que se pasan getters en vez del valor.
+	-- Entorno compartido con Inspect, Chat y AutoSense. ui/github se asignan después
+	-- del init, así que se pasan getters en vez del valor.
 	local env = {
 		plugin = plugin,
 		nowIso = nowIso,
@@ -84,6 +87,7 @@ function Main.start(ctx)
 	}
 	local inspectApi = Inspect.init(env)
 	local chatApi = Chat.init(env)
+	local autoSenseApi = AutoSense.init(env) -- v3.0: lint + espejo automáticos
 
 	-- ---------- acceso a comandos ----------
 
@@ -402,6 +406,12 @@ function Main.start(ctx)
 		tostring(ctx.version),
 		tostring(ctx.loader)
 	))
+	if Config.AUTO_LINT ~= false or Config.AUTO_MIRROR ~= false then
+		ui:Log(("AutoSense activo: lint cada %ds y espejo cada %ds (solo escribe cuando algo cambia)."):format(
+			Config.AUTO_LINT_SECONDS or 600,
+			Config.AUTO_MIRROR_SECONDS or 300
+		))
+	end
 
 	-- stop(): el loader lo llama al actualizar en caliente o al descargarse el plugin.
 	local function stop()
@@ -415,6 +425,7 @@ function Main.start(ctx)
 			end)
 		end
 		inspectApi.detenerHover()
+		autoSenseApi.detener()
 		for _, child in ipairs(widget:GetChildren()) do
 			child:Destroy()
 		end

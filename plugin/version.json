@@ -1,20 +1,2 @@
 {
-	"version": "2.0.1",
-	"updated": "2026-08-24",
-	"loader_min": "2.1",
-	"notes": "Runtime igual que 2.0.0. Requiere loader 2.1 para ver la version real en el titulo del panel y en el chip de la cabecera (UI.lua la trae escrita a mano).",
-	"files": [
-		"Config.lua",
-		"Base64.lua",
-		"GitHub.lua",
-		"Validator.lua",
-		"PathResolver.lua",
-		"Ops.lua",
-		"OpsExtra.lua",
-		"Executor.lua",
-		"UI.lua",
-		"Inspect.lua",
-		"Chat.lua",
-		"Main.lua"
-	]
-}
+\t\"version\": \"3.0.0\",\n\t\"updated\": \"2026-08-25\",\n\t\"loader_min\": \"2.1\",\n\t\"notes\": \"Lint automatico de todos los scripts del place (Lint.lua): bloques/pares sin cerrar, globals no declarados y APIs deprecadas, con arreglo sugerido. Resultados en lint/findings.json (Actions los convierte en issues) y op lint_scripts para ejecucion manual. AutoSense: espejo del estado actual del place en place/mirror.json cada 5 min (solo cuando algo cambia) + op mirror_place. Requiere loader 2.1.\",\n\t\"files\": [\n\t\t\"Config.lua\",\n\t\t\"Base64.lua\",\n\t\t\"GitHub.lua\",\n\t\t\"Validator.lua\",\n\t\t\"PathResolver.lua\",\n\t\t\"Lint.lua\",\n\t\t\"Ops.lua\",\n\t\t\"OpsExtra.lua\",\n\t\t\"AutoSense.lua\",\n\t\t\"Executor.lua\",\n\t\t\"UI.lua\",\n\t\t\"Inspect.lua\",\n\t\t\"Chat.lua\",\n\t\t\"Main.lua\"\n\t]\n}\n

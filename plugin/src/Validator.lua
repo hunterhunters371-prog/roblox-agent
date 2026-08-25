@@ -1,6 +1,7 @@
 -- Validación del lado del plugin: envelope + listas blancas.
 -- Espejo de schemas/allowed_roots.json y schemas/allowed_classes.json (v0.1).
 -- v2.0: insert_asset (Toolbox vía LoadAsset); allow_scripts=true fuerza aprobación.
+-- v3.0: lint_scripts y mirror_place (solo lectura, sin campos obligatorios).
 
 local Config = require(script.Parent.Config)
 
@@ -59,6 +60,8 @@ local REQUIRED = {
 	build_structure = { "structure", "params" },
 	build_from_spec = { "parts" },
 	insert_asset = { "asset_id" }, -- v2.0: Toolbox/Creator Store (path opcional, default Workspace)
+	lint_scripts = {}, -- v3.0: todo opcional (path, max_findings)
+	mirror_place = {}, -- v3.0: todo opcional (path, max_depth, max_instances)
 }
 
 local PATH_FIELDS = { "path", "new_parent", "parent" }
@@ -135,6 +138,17 @@ function Validator.ValidateCommand(cmd)
 		if op.op == "insert_asset" then
 			if type(op.asset_id) ~= "number" or op.asset_id <= 0 then
 				return fail("VALIDATION_FAILED", ("insert_asset (%s): asset_id debe ser número positivo"):format(op.id))
+			end
+		end
+		if op.op == "lint_scripts" or op.op == "mirror_place" then
+			if op.max_depth ~= nil and type(op.max_depth) ~= "number" then
+				return fail("VALIDATION_FAILED", ("%s (%s): max_depth debe ser número"):format(op.op, op.id))
+			end
+			if op.max_findings ~= nil and type(op.max_findings) ~= "number" then
+				return fail("VALIDATION_FAILED", ("%s (%s): max_findings debe ser número"):format(op.op, op.id))
+			end
+			if op.max_instances ~= nil and type(op.max_instances) ~= "number" then
+				return fail("VALIDATION_FAILED", ("%s (%s): max_instances debe ser número"):format(op.op, op.id))
 			end
 		end
 		if (op.op == "ensure_instance" or op.op == "create_instance") and not CLASSES[op.class] then
