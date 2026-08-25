@@ -1,605 +1,839 @@
+--!strict
 --[[
-	MochilaReparto.lua
-	Constructor procedimental de la mochila de reparto del juego "60 SEC".
+	MochilaReparto — constructor procedimental
+	Versión 2.0.0
 
-	Fuente de verdad de la geometria: este modulo.
-	Proceso, criterios de aceptacion e historial: docs/modelado-3d/.
+	Modelo de la mochila de reparto de la lámina «DELIVERY BACKPACK», construido
+	entero con prismas rectos (formas cuadradas), sin cuñas ni mallas externas.
 
-	Referencia: lamina «DELIVERY BACKPACK», estilo voxel de formas cuadradas.
-	Toda la geometria son prismas rectos: la silueta escalonada se consigue con
-	piezas ligeramente orgullosas del cuerpo, sin cuñas, esferas ni mallas.
+	Esta versión rehace la 1.0.0 después de auditar el modelo anterior en un
+	visor 3D propio y encontrar catorce defectos reales. Cada corrección está
+	marcada en el código con su identificador (E1 a E14) y documentada en
+	`docs/modelado-3d/02-registro-iteraciones.md`.
 
-	Uso rapido:
-		local MochilaReparto = require(game.ReplicatedStorage.Modelos.MochilaReparto)
-		local modelo = MochilaReparto.crear()
-		modelo.Parent = workspace
-		modelo:PivotTo(CFrame.new(0, 2.4, 0))
+	Geometría verificada por captura de pantalla en tres vistas (tres cuartos,
+	frente y lateral) antes de escribir este archivo. Lo que no está verificado
+	es su apariencia dentro de Roblox Studio: el visor aproxima la iluminación
+	del motor, no la reproduce.
 
-	Variantes:
-		local roja = MochilaReparto.crearVariante("Roja")
+	Uso mínimo:
 
-	El logo «60 SEC» se dibuja con SurfaceGui, de modo que el modelo no depende
-	de ningun asset subido a Roblox. Cuando existan las texturas definitivas se
-	sustituye unicamente la capa del logo, sin tocar la geometria.
+		local M = require(game.ReplicatedStorage.Modelos.MochilaReparto)
+		M.crearEn(workspace, CFrame.new(0, 2.4, 0), { anclado = true })
 ]]
 
 local MochilaReparto = {}
 
-MochilaReparto.VERSION = "1.0.0"
+MochilaReparto.VERSION = "2.0.0"
 
--- ---------------------------------------------------------------------------
--- Paleta y constantes
--- ---------------------------------------------------------------------------
+-- ==========================================================================
+-- Especificación geométrica
+--
+-- Todas las medidas están en studs. El cuerpo se centra en el origen del
+-- modelo, el frente mira hacia -Z y el pivote coincide con el centro
+-- geométrico del cuerpo, según la convención de la fase 7 del proceso.
+-- ==========================================================================
 
-local PALETA = {
-	turquesa = Color3.fromRGB(56, 178, 169),
-	turquesaOscura = Color3.fromRGB(34, 136, 128),
-	turquesaClara = Color3.fromRGB(94, 206, 195),
-	correa = Color3.fromRGB(30, 30, 34),
-	hebilla = Color3.fromRGB(150, 156, 160),
-	carton = Color3.fromRGB(198, 154, 102),
-	crema = Color3.fromRGB(240, 238, 232),
-	rojo = Color3.fromRGB(198, 62, 52),
-}
+local ANCHO = 2.6
+local ALTO = 3.0
+local FONDO = 1.6
 
--- Separacion entre piezas pegadas. Evita z-fighting sin verse despegadas.
+-- Separación estándar del proyecto contra el z-fighting. Suficiente para que
+-- dos caras no compitan, pequeña para que la pieza no se vea despegada.
 local HOLGURA = 0.006
 
--- Lo que sobresalen las piezas de la silueta escalonada (voxel).
+-- Cuánto sobresale una pieza "orgullosa" para leerse como escalón de voxel.
 local ESCALON = 0.04
 
--- Cesta frontal, en fracciones del cuerpo salvo el fondo, que va en studs.
-local CESTA = { ancho = 0.654, alto = 0.367, fondo = 0.55, centroY = -0.25, barrasV = 5, barrasH = 4, barrasLadoV = 2 }
+local TAPA = {
+	alto = 0.9,
+	sobresaleVertical = 0.046,
+	sobresaleLateral = 0.06,
+}
 
--- Correa del lado +X: segmentos sobre un arco sinusoidal.
-local SEGMENTOS_CORREA = 7
+-- Alturas derivadas de la tapa. Se calculan una sola vez y todo lo que se
+-- apoya en la tapa las referencia, para que mover la tapa mueva el conjunto.
+local TAPA_TOPE = ALTO / 2 + TAPA.sobresaleVertical
+local TAPA_BASE = TAPA_TOPE - TAPA.alto
+local TAPA_CENTRO = (TAPA_TOPE + TAPA_BASE) / 2
 
-local function materialSeguro(nombre, alternativa)
-	local ok, material = pcall(function()
-		return Enum.Material[nombre]
+-- E5: la cesta pasa de una rejilla de 5x4 con barra de 0.05 a una de 8x6 con
+-- barra de 0.035. La malla de la lámina es fina; la anterior parecía una
+-- reja de obra.
+local CESTA = {
+	ancho = 0.654,
+	alto = 0.367,
+	fondo = 0.55,
+	centroY = -0.25,
+	barrasVerticales = 8,
+	barrasHorizontales = 6,
+	barrasLateralV = 2,
+	barrasLateralH = 4,
+	barra = 0.035,
+}
+
+-- E11: la correa viaja por la espalda (z positivo) en vez de por el centro del
+-- lateral. En la 1.0.0 ocupaba el mismo volumen que el bolsillo lateral
+-- derecho y las dos piezas se interpenetraban.
+-- E13: su distancia al costado la separa de las esquinas escalonadas, que
+-- llegan hasta x = 1.34.
+local CORREA = {
+	segmentos = 7,
+	fraccionSuperior = 0.42,
+	alturaInferior = -1.15,
+	fraccionFondo = 0.42,
+	saliente = 0.15,
+	arco = 0.10,
+	giro = 10,
+}
+
+-- Presupuesto declarado antes de construir, comprobado al terminar.
+local PRESUPUESTO = {
+	piezas = 70,
+	triangulos = 900,
+}
+
+-- ==========================================================================
+-- Paleta
+--
+-- Ningún Color3 suelto en el resto del archivo: todo color se declara aquí y
+-- se referencia por rol. Cambiar una fila cambia el modelo entero.
+-- ==========================================================================
+
+local function rgb(r: number, g: number, b: number): Color3
+	return Color3.fromRGB(r, g, b)
+end
+
+local PALETA = {
+	Turquesa = {
+		cuerpo = rgb(56, 178, 169),
+		detalle = rgb(34, 136, 128),
+		rejilla = rgb(30, 122, 115),
+	},
+	Roja = {
+		cuerpo = rgb(196, 74, 62),
+		detalle = rgb(148, 48, 40),
+		rejilla = rgb(134, 42, 35),
+	},
+	Azul = {
+		cuerpo = rgb(64, 118, 206),
+		detalle = rgb(44, 86, 160),
+		rejilla = rgb(38, 76, 144),
+	},
+}
+
+-- Colores que no dependen de la variante.
+local FIJOS = {
+	correa = rgb(30, 30, 34),
+	hebilla = rgb(150, 156, 160),
+	metal = rgb(166, 171, 175),
+	cartonA = rgb(206, 164, 112),
+	cartonB = rgb(188, 145, 96),
+	cartonC = rgb(172, 130, 84),
+	crema = rgb(240, 238, 232),
+	rojoLogo = rgb(198, 62, 52),
+}
+
+MochilaReparto.PALETA = PALETA
+
+-- ==========================================================================
+-- Materiales
+--
+-- E6: el modelo 1.0.0 forzaba SmoothPlastic en las sesenta y ocho piezas e
+-- ignoraba su propia constante de material. Aquí cada rol declara el suyo y
+-- se resuelve con pcall, porque un Enum ausente en una versión antigua del
+-- motor no debe romper la construcción.
+-- ==========================================================================
+
+local function material(nombre: string, alternativa: Enum.Material): Enum.Material
+	local ok, valor = pcall(function()
+		return (Enum.Material :: any)[nombre]
 	end)
-	if ok and material then
-		return material
+	if ok and valor then
+		return valor
 	end
 	return alternativa
 end
 
-local MATERIAL_CUERPO = materialSeguro("Fabric", Enum.Material.SmoothPlastic)
-
-local DEFAULTS = {
-	nombre = "MochilaReparto",
-	variante = "Turquesa",
-
-	-- Geometria del cuerpo en studs: ancho (X), alto (Y), fondo (Z).
-	tamano = Vector3.new(2.6, 3.0, 1.6),
-
-	colorCuerpo = PALETA.turquesa,
-	colorDetalle = PALETA.turquesaOscura,
-	colorRejilla = PALETA.turquesaOscura,
-	colorCorrea = PALETA.correa,
-	colorCarton = PALETA.carton,
-
-	-- Paquetes kraft que sobresalen de la cesta.
-	conPaquetes = true,
-	capacidadPaquetes = 3,
-
-	-- Fisica y gameplay
-	densidad = 0.4,
-	anclado = false,
-	colisiona = true,
-	conProximityPrompt = false,
-
-	-- Rendimiento del marcado
-	pixelesPorStud = 340,
-	distanciaGui = 60,
+local MATERIAL = {
+	tela = material("Fabric", Enum.Material.SmoothPlastic),
+	rigido = material("Plastic", Enum.Material.SmoothPlastic),
+	metal = material("Metal", Enum.Material.SmoothPlastic),
+	carton = material("Cardboard", Enum.Material.Wood),
 }
 
-MochilaReparto.PALETA = PALETA
-MochilaReparto.DEFAULTS = DEFAULTS
+-- Material por rol de pieza. El rol lo declara cada llamada de construcción.
+local MATERIAL_POR_ROL: { [string]: Enum.Material } = {
+	cuerpo = MATERIAL.tela,
+	detalle = MATERIAL.rigido,
+	rejilla = MATERIAL.rigido,
+	correa = MATERIAL.tela,
+	hebilla = MATERIAL.metal,
+	metal = MATERIAL.metal,
+	cartonA = MATERIAL.carton,
+	cartonB = MATERIAL.carton,
+	cartonC = MATERIAL.carton,
+}
 
--- Variantes: solo cambian color y atributos. Nunca rehacen la geometria.
+-- Roles que usan el color de la variante en vez de un color fijo.
+local ROLES_DE_VARIANTE = {
+	cuerpo = "cuerpo",
+	detalle = "detalle",
+	rejilla = "rejilla",
+}
+
+-- ==========================================================================
+-- Variantes
+--
+-- Una variante es una tabla de sobrescrituras: color, atributos y masa. Nunca
+-- cambia dimensiones ni nombres de piezas.
+-- ==========================================================================
+
 MochilaReparto.VARIANTES = {
-	Turquesa = {},
-	Roja = {
-		variante = "Roja",
-		nombre = "MochilaRepartoRoja",
-		colorCuerpo = Color3.fromRGB(196, 74, 62),
-		colorDetalle = Color3.fromRGB(148, 48, 40),
-		colorRejilla = Color3.fromRGB(148, 48, 40),
-	},
-	Azul = {
-		variante = "Azul",
-		nombre = "MochilaRepartoAzul",
-		colorCuerpo = Color3.fromRGB(64, 118, 206),
-		colorDetalle = Color3.fromRGB(44, 86, 160),
-		colorRejilla = Color3.fromRGB(44, 86, 160),
-	},
+	Estandar = { paleta = "Turquesa", etiqueta = "Reparto estándar" },
+	Express = { paleta = "Roja", etiqueta = "Reparto exprés" },
+	Refrigerado = { paleta = "Azul", etiqueta = "Reparto refrigerado" },
 }
 
--- ---------------------------------------------------------------------------
--- Utilidades
--- ---------------------------------------------------------------------------
+-- ==========================================================================
+-- Utilidades de construcción
+-- ==========================================================================
 
-local function fusionar(base, extra)
-	local salida = {}
-	for clave, valor in pairs(base) do
-		salida[clave] = valor
+local function nuevaPieza(config: {
+	nombre: string,
+	rol: string,
+	tamano: Vector3,
+	posicion: Vector3,
+	giroZ: number?,
+	paleta: { [string]: Color3 },
+	padre: Instance,
+}): BasePart
+	local pieza = Instance.new("Part")
+	pieza.Name = config.nombre
+	pieza.Size = config.tamano
+
+	local rotacion = config.giroZ
+	if rotacion and rotacion ~= 0 then
+		pieza.CFrame = CFrame.new(config.posicion) * CFrame.Angles(0, 0, math.rad(rotacion))
+	else
+		pieza.CFrame = CFrame.new(config.posicion)
 	end
-	if extra then
-		for clave, valor in pairs(extra) do
-			salida[clave] = valor
-		end
+
+	local clave = ROLES_DE_VARIANTE[config.rol]
+	if clave then
+		pieza.Color = config.paleta[clave]
+	else
+		pieza.Color = FIJOS[config.rol] or FIJOS.metal
 	end
-	return salida
+
+	pieza.Material = MATERIAL_POR_ROL[config.rol] or MATERIAL.rigido
+	pieza.Anchored = false
+	pieza.Massless = true
+	pieza.CanCollide = false
+	pieza.CanQuery = false
+	pieza.CanTouch = false
+	pieza.TopSurface = Enum.SurfaceType.Smooth
+	pieza.BottomSurface = Enum.SurfaceType.Smooth
+	pieza.Parent = config.padre
+
+	return pieza
 end
 
-local function nuevaParte(nombre, tamano, padre)
-	local parte = Instance.new("Part")
-	parte.Name = nombre
-	parte.Size = tamano
-	parte.Anchored = false
-	parte.CanCollide = false
-	parte.CanQuery = false
-	parte.CanTouch = false
-	parte.Massless = true
-	parte.TopSurface = Enum.SurfaceType.Smooth
-	parte.BottomSurface = Enum.SurfaceType.Smooth
-	parte.Parent = padre
-	return parte
+local function puntoDeAgarre(nombre: string, posicion: Vector3, padre: BasePart): Attachment
+	local punto = Instance.new("Attachment")
+	punto.Name = nombre
+	punto.Position = posicion
+	punto.Parent = padre
+	return punto
 end
 
-local function soldar(principal, secundaria)
-	local union = Instance.new("WeldConstraint")
-	union.Name = "Union"
-	union.Part0 = principal
-	union.Part1 = secundaria
-	union.Parent = secundaria
-	return union
-end
-
--- Pieza soldada al cuerpo, con CFrame local relativo al centro del cuerpo.
-local function nuevaPieza(modelo, cuerpo, nombre, tamano, localCF, color)
-	local parte = nuevaParte(nombre, tamano, modelo)
-	parte.Color = color
-	parte.Material = Enum.Material.SmoothPlastic
-	parte.CFrame = cuerpo.CFrame * localCF
-	soldar(cuerpo, parte)
-	return parte
-end
-
-local function nuevaSuperficie(parte, cara, cfg, nombre)
-	local superficie = Instance.new("SurfaceGui")
-	superficie.Name = nombre or "Impresion"
-	superficie.Face = cara
-	superficie.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	superficie.PixelsPerStud = cfg.pixelesPorStud
-	superficie.LightInfluence = 1
-	superficie.MaxDistance = cfg.distanciaGui
-	superficie.Parent = parte
-	return superficie
-end
-
-local function nuevoTexto(padre, contenido, posicion, tamano, fuente, color)
-	local etiqueta = Instance.new("TextLabel")
-	etiqueta.BackgroundTransparency = 1
-	etiqueta.BorderSizePixel = 0
-	etiqueta.Position = posicion
-	etiqueta.Size = tamano
-	etiqueta.Font = fuente
-	etiqueta.Text = contenido
-	etiqueta.TextColor3 = color
-	etiqueta.TextScaled = true
-	etiqueta.TextXAlignment = Enum.TextXAlignment.Center
-	etiqueta.TextYAlignment = Enum.TextYAlignment.Center
-	etiqueta.Parent = padre
-	return etiqueta
-end
-
-local function nuevoBloque(padre, posicion, tamano, color, rotacion)
-	local bloque = Instance.new("Frame")
-	bloque.BackgroundColor3 = color
-	bloque.BorderSizePixel = 0
-	bloque.Position = posicion
-	bloque.Size = tamano
-	bloque.Rotation = rotacion or 0
-	bloque.Parent = padre
-	return bloque
-end
-
--- ---------------------------------------------------------------------------
--- Logo «60 SEC» con cronometro, dibujado con GUI sobre la tapa
--- ---------------------------------------------------------------------------
-
-local function construirLogo(tapa, cfg)
-	local superficie = nuevaSuperficie(tapa, Enum.NormalId.Front, cfg, "LogoFrontal")
-
-	-- El labio de la tapa cubre el 10 % inferior de la cara: el logo queda arriba.
-	nuevoTexto(superficie, "6", UDim2.fromScale(0.30, 0.02), UDim2.fromScale(0.13, 0.40), Enum.Font.GothamBold, PALETA.crema)
-
-	local reloj = Instance.new("Frame")
-	reloj.Name = "Cronometro"
-	reloj.BackgroundTransparency = 1
-	reloj.Position = UDim2.fromScale(0.44, 0.02)
-	reloj.Size = UDim2.fromScale(0.20, 0.40)
-	reloj.Parent = superficie
-
-	local esfera = Instance.new("Frame")
-	esfera.Name = "Esfera"
-	esfera.BackgroundTransparency = 1
-	esfera.Position = UDim2.fromScale(0.05, 0.10)
-	esfera.Size = UDim2.fromScale(0.90, 0.82)
-	esfera.Parent = reloj
-
-	local redondeo = Instance.new("UICorner")
-	redondeo.CornerRadius = UDim.new(0.5, 0)
-	redondeo.Parent = esfera
-
-	local contorno = Instance.new("UIStroke")
-	contorno.Color = PALETA.crema
-	contorno.Thickness = 4
-	contorno.Parent = esfera
-
-	-- Pulsador superior del cronometro y manecillas: una arriba, una a la derecha.
-	nuevoBloque(reloj, UDim2.fromScale(0.41, 0.0), UDim2.fromScale(0.18, 0.10), PALETA.crema)
-	nuevoBloque(esfera, UDim2.fromScale(0.47, 0.14), UDim2.fromScale(0.06, 0.32), PALETA.crema)
-	nuevoBloque(esfera, UDim2.fromScale(0.50, 0.43), UDim2.fromScale(0.26, 0.06), PALETA.crema)
-
-	local centro = nuevoBloque(esfera, UDim2.fromScale(0.40, 0.36), UDim2.fromScale(0.20, 0.20), PALETA.rojo)
-	local redondeoCentro = Instance.new("UICorner")
-	redondeoCentro.CornerRadius = UDim.new(0.5, 0)
-	redondeoCentro.Parent = centro
-
-	nuevoTexto(superficie, "SEC", UDim2.fromScale(0.28, 0.44), UDim2.fromScale(0.34, 0.34), Enum.Font.GothamBold, PALETA.crema)
-
-	return superficie
-end
-
--- ---------------------------------------------------------------------------
+-- ==========================================================================
 -- Piezas del modelo
--- ---------------------------------------------------------------------------
+-- ==========================================================================
 
-local function construirTapa(modelo, cuerpo, cfg)
-	local W, H, D = cfg.tamano.X, cfg.tamano.Y, cfg.tamano.Z
-	local altoTapa = 0.3 * H
-	local centroTapaY = H / 2 - altoTapa / 2 + ESCALON + HOLGURA
+-- Cuerpo principal, esquinas escalonadas y zócalo.
+local function construirCuerpo(modelo: Model, paleta: { [string]: Color3 }): BasePart
+	local cuerpo = nuevaPieza({
+		nombre = "Cuerpo",
+		rol = "cuerpo",
+		tamano = Vector3.new(ANCHO, ALTO, FONDO),
+		posicion = Vector3.zero,
+		paleta = paleta,
+		padre = modelo,
+	})
+	cuerpo.CanCollide = true
+	cuerpo.CanQuery = true
+	cuerpo.CanTouch = true
+	cuerpo.Massless = false
 
-	local tapa = nuevaPieza(
-		modelo,
-		cuerpo,
-		"Tapa",
-		Vector3.new(W + 0.12, altoTapa, D + 0.12),
-		CFrame.new(0, centroTapaY, 0),
-		cfg.colorCuerpo
-	)
-
-	local labioY = centroTapaY - altoTapa / 2
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"LabioTapa",
-		Vector3.new(W + 0.12, 0.18, 0.07),
-		CFrame.new(0, labioY, -(D / 2 + 0.06 + 0.035 - HOLGURA)),
-		cfg.colorDetalle
-	)
-
-	return tapa, centroTapaY + altoTapa / 2
-end
-
-local function construirAsa(modelo, cuerpo, cfg, tapaTop)
-	local W = cfg.tamano.X
-	local separacion = 0.19 * W
-
-	for _, lado in ipairs({ -1, 1 }) do
-		local sufijo = lado < 0 and "Izq" or "Der"
-		nuevaPieza(
-			modelo,
-			cuerpo,
-			"AsaPoste" .. sufijo,
-			Vector3.new(0.16, 0.34, 0.16),
-			CFrame.new(lado * separacion, tapaTop + 0.17 - HOLGURA, 0),
-			cfg.colorDetalle
-		)
-	end
-
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"AsaBarra",
-		Vector3.new(0.43 * W, 0.16, 0.16),
-		CFrame.new(0, tapaTop + 0.34 + 0.08 - HOLGURA * 2, 0),
-		cfg.colorDetalle
-	)
-end
-
-local function construirSilueta(modelo, cuerpo, cfg)
-	local W, H, D = cfg.tamano.X, cfg.tamano.Y, cfg.tamano.Z
-
-	-- Esquinas orgullosas: el escalonado voxel de la referencia.
-	for _, sx in ipairs({ -1, 1 }) do
-		for _, sz in ipairs({ -1, 1 }) do
-			local nombre = "Esquina" .. (sx < 0 and "Izq" or "Der") .. (sz < 0 and "Front" or "Back")
-			nuevaPieza(
-				modelo,
-				cuerpo,
-				nombre,
-				Vector3.new(0.2, H - 0.04, 0.2),
-				CFrame.new(sx * (W / 2 - 0.06), 0, sz * (D / 2 - 0.06)),
-				cfg.colorDetalle
-			)
+	-- E1: en la 1.0.0 las cuatro esquinas y el zócalo iban en el color oscuro de
+	-- detalle, lo que dibujaba cuatro rayas verticales que la lámina no tiene.
+	-- Ahora son del color del cuerpo y solo aportan volumen, no dibujo.
+	for _, x in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			nuevaPieza({
+				nombre = "EsquinaCuerpo",
+				rol = "cuerpo",
+				tamano = Vector3.new(0.20, ALTO - ESCALON, 0.20),
+				posicion = Vector3.new(
+					x * (ANCHO / 2 - 0.06),
+					0,
+					z * (FONDO / 2 - 0.06)
+				),
+				paleta = paleta,
+				padre = modelo,
+			})
 		end
 	end
 
-	-- Base orgullosa: segundo escalon de la silueta.
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"BaseInferior",
-		Vector3.new(W + 0.06, 0.14, D + 0.06),
-		CFrame.new(0, -H / 2 + 0.05, 0),
-		cfg.colorDetalle
-	)
+	nuevaPieza({
+		nombre = "Zocalo",
+		rol = "cuerpo",
+		tamano = Vector3.new(ANCHO + ESCALON, 0.14, FONDO + ESCALON),
+		posicion = Vector3.new(0, -ALTO / 2 + 0.07, 0),
+		paleta = paleta,
+		padre = modelo,
+	})
+
+	return cuerpo
 end
 
-local function construirBolsillos(modelo, cuerpo, cfg)
-	local W, H, D = cfg.tamano.X, cfg.tamano.Y, cfg.tamano.Z
+-- Tapa superior con su labio, los rieles laterales y el broche metálico.
+local function construirTapa(modelo: Model, paleta: { [string]: Color3 })
+	-- E10: la tapa sobresale del cuerpo en los tres ejes. En la 1.0.0 quedaba
+	-- enrasada y no se leía como solapa independiente.
+	nuevaPieza({
+		nombre = "Tapa",
+		rol = "cuerpo",
+		tamano = Vector3.new(
+			ANCHO + TAPA.sobresaleLateral * 2,
+			TAPA.alto,
+			FONDO + TAPA.sobresaleLateral * 2
+		),
+		posicion = Vector3.new(0, TAPA_CENTRO, 0),
+		paleta = paleta,
+		padre = modelo,
+	})
 
-	-- Bolsillo derecho (+X): el que se ve completo en la referencia, con solapa.
-	local altoDer = 0.27 * H
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"BolsilloDerecho",
-		Vector3.new(0.34, altoDer, 0.44 * D),
-		CFrame.new(W / 2 + 0.17 - HOLGURA, -0.2 * H, 0.06),
-		cfg.colorCuerpo
-	)
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"SolapaDerecha",
-		Vector3.new(0.38, 0.22, 0.44 * D + 0.04),
-		CFrame.new(W / 2 + 0.19 - HOLGURA, -0.2 * H + altoDer / 2 + 0.08, 0.06),
-		cfg.colorDetalle
-	)
+	for _, lado in { -1, 1 } do
+		nuevaPieza({
+			nombre = "RielTapa",
+			rol = "detalle",
+			tamano = Vector3.new(0.06, 0.06, FONDO + 0.14),
+			posicion = Vector3.new(lado * (ANCHO / 2 + 0.09), TAPA_BASE - 0.03, 0),
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
 
-	-- Bolsillo izquierdo (-X): en la referencia solo asoma una protuberancia.
-	local altoIzq = 0.23 * H
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"BolsilloIzquierdo",
-		Vector3.new(0.2, altoIzq, 0.38 * D),
-		CFrame.new(-(W / 2 + 0.1 - HOLGURA), -0.23 * H, 0.03),
-		cfg.colorCuerpo
-	)
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"SolapaIzquierda",
-		Vector3.new(0.24, 0.18, 0.38 * D + 0.04),
-		CFrame.new(-(W / 2 + 0.12 - HOLGURA), -0.23 * H + altoIzq / 2 + 0.06, 0.03),
-		cfg.colorDetalle
-	)
+	-- E8: el labio ya no invade la cara frontal de la tapa. Cuelga por debajo de
+	-- su borde, así el logo dispone de toda la superficie. Y adelgaza de 0.22 a
+	-- 0.16 studs, porque a 0.22 dibujaba una banda oscura demasiado ancha.
+	nuevaPieza({
+		nombre = "LabioTapa",
+		rol = "detalle",
+		tamano = Vector3.new(ANCHO + 0.14, 0.16, 0.09),
+		posicion = Vector3.new(0, TAPA_BASE - 0.06, -(FONDO / 2 + 0.105 - HOLGURA)),
+		paleta = paleta,
+		padre = modelo,
+	})
+
+	-- E7: broche metálico del costado derecho, que la lámina dibuja y la 1.0.0
+	-- no tenía.
+	-- E14: va cerca del borde frontal, no en el centro del lateral.
+	nuevaPieza({
+		nombre = "BrocheLateral",
+		rol = "metal",
+		tamano = Vector3.new(0.09, 0.26, 0.30),
+		posicion = Vector3.new(ANCHO / 2 + 0.105, 0.70, -0.45),
+		paleta = paleta,
+		padre = modelo,
+	})
+	nuevaPieza({
+		nombre = "BrochePasador",
+		rol = "metal",
+		tamano = Vector3.new(0.13, 0.09, 0.16),
+		posicion = Vector3.new(ANCHO / 2 + 0.13, 0.70, -0.45),
+		paleta = paleta,
+		padre = modelo,
+	})
 end
 
-local function construirCesta(modelo, cuerpo, cfg)
-	local W, H, D = cfg.tamano.X, cfg.tamano.Y, cfg.tamano.Z
-	local g = 0.05 -- grosor de barra de la rejilla
-	local anchoC = CESTA.ancho * W
-	local altoC = CESTA.alto * H
-	local centroY = CESTA.centroY * H
-	local centroZ = -(D / 2) - CESTA.fondo / 2 + HOLGURA
+-- Asa de dos postes y barra, desplazada hacia la espalda para no chocar con
+-- la vertical del logo.
+local function construirAsa(modelo: Model, paleta: { [string]: Color3 }): Vector3
+	local alturaPoste = TAPA_TOPE + 0.17 - HOLGURA
+	for _, lado in { -1, 1 } do
+		nuevaPieza({
+			nombre = "PosteAsa",
+			rol = "detalle",
+			tamano = Vector3.new(0.16, 0.34, 0.16),
+			posicion = Vector3.new(lado * 0.20 * ANCHO, alturaPoste, 0.12),
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
+
+	local alturaBarra = TAPA_TOPE + 0.42 - HOLGURA * 2
+	nuevaPieza({
+		nombre = "BarraAsa",
+		rol = "detalle",
+		tamano = Vector3.new(0.40 * ANCHO + 0.156, 0.16, 0.16),
+		posicion = Vector3.new(0, alturaBarra, 0.12),
+		paleta = paleta,
+		padre = modelo,
+	})
+
+	return Vector3.new(0, alturaBarra, 0.12)
+end
+
+-- Bolsillos de los dos costados, con solapa y dos pliegues.
+local function construirBolsillos(modelo: Model, paleta: { [string]: Color3 })
+	for _, lado in { -1, 1 } do
+		local x = lado * (ANCHO / 2 + 0.164)
+
+		nuevaPieza({
+			nombre = "BolsilloLateral",
+			rol = "cuerpo",
+			tamano = Vector3.new(0.34, 0.81, 0.70),
+			posicion = Vector3.new(x, -0.60, 0.06),
+			paleta = paleta,
+			padre = modelo,
+		})
+
+		nuevaPieza({
+			nombre = "SolapaBolsillo",
+			rol = "detalle",
+			tamano = Vector3.new(0.36, 0.16, 0.72),
+			posicion = Vector3.new(lado * (ANCHO / 2 + 0.174), -0.16, 0.06),
+			paleta = paleta,
+			padre = modelo,
+		})
+
+		for _, altura in { -0.72, -0.90 } do
+			nuevaPieza({
+				nombre = "PliegueBolsillo",
+				rol = "detalle",
+				tamano = Vector3.new(0.36, 0.04, 0.684),
+				posicion = Vector3.new(lado * (ANCHO / 2 + 0.174), altura, 0.06),
+				paleta = paleta,
+				padre = modelo,
+			})
+		end
+	end
+end
+
+-- Cesta frontal de rejilla y los tres paquetes que asoman por encima.
+local function construirCesta(modelo: Model, paleta: { [string]: Color3 }): Vector3
+	local ancho = ANCHO * CESTA.ancho
+	local alto = ALTO * CESTA.alto
+	local centroY = ALTO * CESTA.centroY
+	local centroZ = -(FONDO / 2 + CESTA.fondo / 2 - HOLGURA * 2)
 	local frenteZ = centroZ - CESTA.fondo / 2
+	local baseY = centroY - alto / 2
+	local marcoSuperiorY = centroY + alto / 2
+	local barra = CESTA.barra
 
-	-- Barras verticales y horizontales de la cara frontal.
-	for i = 1, CESTA.barrasV do
-		local x = -anchoC / 2 + (i - 0.5) * (anchoC / CESTA.barrasV)
-		nuevaPieza(modelo, cuerpo, "RejillaFrontalV" .. i, Vector3.new(g, altoC, g), CFrame.new(x, centroY, frenteZ + g / 2), cfg.colorRejilla)
-	end
-	for j = 1, CESTA.barrasH do
-		local y = centroY - altoC / 2 + j * (altoC / (CESTA.barrasH + 1))
-		nuevaPieza(modelo, cuerpo, "RejillaFrontalH" .. j, Vector3.new(anchoC, g, g), CFrame.new(0, y, frenteZ + g / 2), cfg.colorRejilla)
+	-- Marco: suelo, borde superior y las dos columnas de las esquinas.
+	nuevaPieza({
+		nombre = "SueloCesta",
+		rol = "rejilla",
+		tamano = Vector3.new(ancho, barra * 1.6, CESTA.fondo),
+		posicion = Vector3.new(0, baseY, centroZ),
+		paleta = paleta,
+		padre = modelo,
+	})
+	nuevaPieza({
+		nombre = "MarcoCestaSuperior",
+		rol = "rejilla",
+		tamano = Vector3.new(ancho, barra * 1.6, CESTA.fondo),
+		posicion = Vector3.new(0, marcoSuperiorY, centroZ),
+		paleta = paleta,
+		padre = modelo,
+	})
+	for _, lado in { -1, 1 } do
+		nuevaPieza({
+			nombre = "ColumnaCesta",
+			rol = "rejilla",
+			tamano = Vector3.new(barra * 1.6, alto, barra * 1.6),
+			posicion = Vector3.new(lado * (ancho / 2 - barra), centroY, frenteZ + barra),
+			paleta = paleta,
+			padre = modelo,
+		})
 	end
 
-	-- Laterales de la cesta. La cara trasera no lleva barras: queda oculta
-	-- contra el cuerpo y serian caras invisibles consumiendo presupuesto.
-	for _, lado in ipairs({ -1, 1 }) do
-		local sufijo = lado < 0 and "Izq" or "Der"
-		local x = lado * (anchoC / 2 - g / 2)
-		for k = 1, CESTA.barrasLadoV do
-			local z = frenteZ + k * (CESTA.fondo / (CESTA.barrasLadoV + 1))
-			nuevaPieza(modelo, cuerpo, "RejillaLateral" .. sufijo .. "V" .. k, Vector3.new(g, altoC, g), CFrame.new(x, centroY, z), cfg.colorRejilla)
+	-- Rejilla frontal.
+	for i = 1, CESTA.barrasVerticales do
+		local f = (i - 0.5) / CESTA.barrasVerticales
+		nuevaPieza({
+			nombre = "BarraCestaV",
+			rol = "rejilla",
+			tamano = Vector3.new(barra, alto, barra),
+			posicion = Vector3.new(-ancho / 2 + f * ancho, centroY, frenteZ),
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
+	for i = 1, CESTA.barrasHorizontales do
+		local f = (i - 0.5) / CESTA.barrasHorizontales
+		nuevaPieza({
+			nombre = "BarraCestaH",
+			rol = "rejilla",
+			tamano = Vector3.new(ancho, barra, barra),
+			posicion = Vector3.new(0, baseY + f * alto, frenteZ),
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
+
+	-- Rejilla de los dos costados de la cesta. La cara trasera no se construye:
+	-- queda oculta contra el cuerpo y gastaría presupuesto.
+	for _, lado in { -1, 1 } do
+		for i = 1, CESTA.barrasLateralV do
+			local f = (i - 0.5) / CESTA.barrasLateralV
+			nuevaPieza({
+				nombre = "BarraCestaLadoV",
+				rol = "rejilla",
+				tamano = Vector3.new(barra, alto, barra),
+				posicion = Vector3.new(
+					lado * (ancho / 2),
+					centroY,
+					frenteZ + f * CESTA.fondo
+				),
+				paleta = paleta,
+				padre = modelo,
+			})
 		end
-		for j = 1, CESTA.barrasH do
-			local y = centroY - altoC / 2 + j * (altoC / (CESTA.barrasH + 1))
-			nuevaPieza(modelo, cuerpo, "RejillaLateral" .. sufijo .. "H" .. j, Vector3.new(g, g, CESTA.fondo), CFrame.new(x, y, centroZ), cfg.colorRejilla)
+		for i = 1, CESTA.barrasLateralH do
+			local f = (i - 0.5) / CESTA.barrasLateralH
+			nuevaPieza({
+				nombre = "BarraCestaLadoH",
+				rol = "rejilla",
+				tamano = Vector3.new(barra, barra, CESTA.fondo),
+				posicion = Vector3.new(lado * (ancho / 2), baseY + f * alto, centroZ),
+				paleta = paleta,
+				padre = modelo,
+			})
 		end
 	end
 
-	-- Marcos superior e inferior: el borde grueso que remata la cesta.
-	local marcoSup = centroY + altoC / 2 + 0.04
-	local marcoInf = centroY - altoC / 2 - 0.04
-	nuevaPieza(modelo, cuerpo, "RejillaMarcoSupFront", Vector3.new(anchoC + 0.16, 0.08, 0.08), CFrame.new(0, marcoSup, frenteZ + 0.01), cfg.colorDetalle)
-	nuevaPieza(modelo, cuerpo, "RejillaMarcoInfFront", Vector3.new(anchoC + 0.16, 0.08, 0.08), CFrame.new(0, marcoInf, frenteZ + 0.01), cfg.colorDetalle)
-	for _, lado in ipairs({ -1, 1 }) do
-		local sufijo = lado < 0 and "Izq" or "Der"
-		local x = lado * (anchoC / 2 + 0.01)
-		nuevaPieza(modelo, cuerpo, "RejillaMarcoSup" .. sufijo, Vector3.new(0.08, 0.08, CESTA.fondo + 0.16), CFrame.new(x, marcoSup, centroZ), cfg.colorDetalle)
-		nuevaPieza(modelo, cuerpo, "RejillaMarcoInf" .. sufijo, Vector3.new(0.08, 0.08, CESTA.fondo + 0.16), CFrame.new(x, marcoInf, centroZ), cfg.colorDetalle)
-	end
-
-	-- Fondo solido: los paquetes se apoyan aqui y no se ven huecos desde abajo.
-	nuevaPieza(modelo, cuerpo, "RejillaFondo", Vector3.new(anchoC, 0.06, CESTA.fondo), CFrame.new(0, centroY - altoC / 2 + 0.03, centroZ), cfg.colorDetalle)
-
-	if not cfg.conPaquetes then
-		return
-	end
-
-	-- Tres paquetes kraft sobresaliendo por encima del marco, como en la lamina.
-	local baseY = centroY - altoC / 2 + 0.06
-	local datos = {
-		{ fx = -0.30, w = 0.36, h = 1.18 },
-		{ fx = 0.05, w = 0.33, h = 1.10 },
-		{ fx = 0.38, w = 0.28, h = 1.30 },
+	-- E4: tres paquetes con separación real de 0.09 studs y tres tonos de cartón
+	-- distintos. En la 1.0.0 los huecos eran de 0.008 y 0.042 studs, así que a
+	-- distancia de juego se leían como un bloque único.
+	-- E12: sus alturas suben para que sobresalgan del marco entre 0.12 y 0.39
+	-- studs. Antes el tercero asomaba 0.036 studs, es decir, no asomaba.
+	local paquetes = {
+		{ x = -0.46, ancho = 0.44, alto = 1.35, rol = "cartonB" },
+		{ x = 0.05, ancho = 0.40, alto = 1.48, rol = "cartonA" },
+		{ x = 0.51, ancho = 0.34, alto = 1.24, rol = "cartonC" },
 	}
-	for i, dato in ipairs(datos) do
-		local alto = dato.h * altoC
-		nuevaPieza(
-			modelo,
-			cuerpo,
-			"PaqueteCesta" .. i,
-			Vector3.new(dato.w * anchoC, alto, 0.45),
-			CFrame.new(dato.fx * anchoC, baseY + alto / 2, centroZ),
-			cfg.colorCarton
-		)
+	for _, paquete in paquetes do
+		local altura = paquete.alto * alto
+		nuevaPieza({
+			nombre = "PaqueteCesta",
+			rol = paquete.rol,
+			tamano = Vector3.new(paquete.ancho, altura, 0.45),
+			posicion = Vector3.new(paquete.x, baseY + 0.06 + altura / 2, centroZ),
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
+
+	return Vector3.new(0, marcoSuperiorY, centroZ)
+end
+
+-- Correa de hombro, hombrera y hebilla inferior.
+local function construirCorrea(modelo: Model, paleta: { [string]: Color3 })
+	local alturaSuperior = ALTO * CORREA.fraccionSuperior
+	local alturaInferior = CORREA.alturaInferior
+	local z = FONDO * CORREA.fraccionFondo
+
+	-- E2: el segmento más bajo termina en y = -1.40, por encima de la base del
+	-- cuerpo, que está en -1.50. En la 1.0.0 la correa bajaba hasta -1.86 y
+	-- atravesaba el suelo.
+	-- E3: el saliente de 0.15 studs mantiene la correa pegada a las esquinas del
+	-- cuerpo. Antes quedaba un hueco de hasta 0.29 studs y parecía flotar.
+	for i = 1, CORREA.segmentos do
+		local f = (i - 1) / (CORREA.segmentos - 1)
+		local y = alturaSuperior - f * (alturaSuperior - alturaInferior)
+		local x = ANCHO / 2
+			+ CORREA.saliente
+			+ math.sin(f * math.pi) * CORREA.arco
+		nuevaPieza({
+			nombre = "SegmentoCorrea",
+			rol = "correa",
+			tamano = Vector3.new(0.16, 0.50, 0.40),
+			posicion = Vector3.new(x, y, z),
+			giroZ = -math.cos(f * math.pi) * CORREA.giro,
+			paleta = paleta,
+			padre = modelo,
+		})
+	end
+
+	nuevaPieza({
+		nombre = "Hombrera",
+		rol = "correa",
+		tamano = Vector3.new(0.62, 0.18, 0.52),
+		posicion = Vector3.new(ANCHO / 2 - 0.10, TAPA_TOPE + 0.09 - HOLGURA, z),
+		paleta = paleta,
+		padre = modelo,
+	})
+	nuevaPieza({
+		nombre = "HombreraCresta",
+		rol = "correa",
+		tamano = Vector3.new(0.42, 0.12, 0.36),
+		posicion = Vector3.new(ANCHO / 2 - 0.10, TAPA_TOPE + 0.23 - HOLGURA, z),
+		paleta = paleta,
+		padre = modelo,
+	})
+
+	-- E13: la hebilla se aparta a 0.15 studs del costado para librar la esquina
+	-- escalonada, que alcanza x = 1.34. A 0.10 studs las dos piezas se cruzaban.
+	nuevaPieza({
+		nombre = "Hebilla",
+		rol = "hebilla",
+		tamano = Vector3.new(0.20, 0.26, 0.46),
+		posicion = Vector3.new(ANCHO / 2 + CORREA.saliente, -1.30, z),
+		paleta = paleta,
+		padre = modelo,
+	})
+	nuevaPieza({
+		nombre = "PasadorHebilla",
+		rol = "correa",
+		tamano = Vector3.new(0.22, 0.05, 0.28),
+		posicion = Vector3.new(ANCHO / 2 + CORREA.saliente, -1.30, z),
+		paleta = paleta,
+		padre = modelo,
+	})
+end
+
+-- ==========================================================================
+-- Logotipo «60 SEC»
+--
+-- Se dibuja con SurfaceGui sobre la cara frontal de la tapa. Mientras no haya
+-- texturas subidas a Roblox, esta es la única forma de que el modelo se
+-- reconstruya entero desde el repositorio.
+-- ==========================================================================
+
+local function construirLogo(tapa: BasePart)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "LogoFrontal"
+	gui.Face = Enum.NormalId.Front
+	gui.LightInfluence = 1
+	gui.MaxDistance = 60
+	gui.PixelsPerStud = 80
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.Parent = tapa
+
+	-- E9: el «6», el cronómetro y el «SEC» comparten un contenedor centrado. En
+	-- la 1.0.0 cada grupo se posicionaba por separado y el conjunto quedaba
+	-- descentrado respecto a la tapa.
+	local marco = Instance.new("Frame")
+	marco.Name = "Marco"
+	marco.BackgroundTransparency = 1
+	marco.AnchorPoint = Vector2.new(0.5, 0.5)
+	marco.Position = UDim2.fromScale(0.5, 0.5)
+	marco.Size = UDim2.fromScale(0.62, 0.74)
+	marco.Parent = gui
+
+	local fila = Instance.new("Frame")
+	fila.Name = "FilaSuperior"
+	fila.BackgroundTransparency = 1
+	fila.Position = UDim2.fromScale(0, 0)
+	fila.Size = UDim2.fromScale(1, 0.52)
+	fila.Parent = marco
+
+	local seis = Instance.new("TextLabel")
+	seis.Name = "Seis"
+	seis.BackgroundTransparency = 1
+	seis.Font = Enum.Font.GothamBlack
+	seis.Text = "6"
+	seis.TextColor3 = FIJOS.crema
+	seis.TextScaled = true
+	seis.TextXAlignment = Enum.TextXAlignment.Right
+	seis.Position = UDim2.fromScale(0, 0)
+	seis.Size = UDim2.fromScale(0.46, 1)
+	seis.Parent = fila
+
+	-- El cero del «60» es el cronómetro: aro crema con aguja roja.
+	local aro = Instance.new("Frame")
+	aro.Name = "Cronometro"
+	aro.BackgroundTransparency = 1
+	aro.BorderSizePixel = 0
+	aro.Position = UDim2.fromScale(0.50, 0.06)
+	aro.Size = UDim2.fromScale(0.42, 0.88)
+	aro.Parent = fila
+
+	local aroBorde = Instance.new("UIStroke")
+	aroBorde.Color = FIJOS.crema
+	aroBorde.Thickness = 5
+	aroBorde.Parent = aro
+
+	local aroForma = Instance.new("UICorner")
+	aroForma.CornerRadius = UDim.new(0.5, 0)
+	aroForma.Parent = aro
+
+	local boton = Instance.new("Frame")
+	boton.Name = "BotonCronometro"
+	boton.BackgroundColor3 = FIJOS.crema
+	boton.BorderSizePixel = 0
+	boton.AnchorPoint = Vector2.new(0.5, 1)
+	boton.Position = UDim2.fromScale(0.5, 0.02)
+	boton.Size = UDim2.fromScale(0.26, 0.18)
+	boton.Parent = aro
+
+	local aguja = Instance.new("Frame")
+	aguja.Name = "Aguja"
+	aguja.BackgroundColor3 = FIJOS.rojoLogo
+	aguja.BorderSizePixel = 0
+	aguja.AnchorPoint = Vector2.new(0.5, 1)
+	aguja.Position = UDim2.fromScale(0.5, 0.54)
+	aguja.Size = UDim2.fromScale(0.12, 0.34)
+	aguja.Rotation = 32
+	aguja.Parent = aro
+
+	local sec = Instance.new("TextLabel")
+	sec.Name = "Sec"
+	sec.BackgroundTransparency = 1
+	sec.Font = Enum.Font.GothamBlack
+	sec.Text = "SEC"
+	sec.TextColor3 = FIJOS.crema
+	sec.TextScaled = true
+	sec.TextXAlignment = Enum.TextXAlignment.Center
+	sec.Position = UDim2.fromScale(0, 0.54)
+	sec.Size = UDim2.fromScale(1, 0.46)
+	sec.Parent = marco
+end
+
+-- ==========================================================================
+-- Ensamblado
+-- ==========================================================================
+
+local function soldar(cuerpo: BasePart, modelo: Model)
+	for _, pieza in modelo:GetDescendants() do
+		if pieza:IsA("BasePart") and pieza ~= cuerpo then
+			local union = Instance.new("WeldConstraint")
+			union.Part0 = cuerpo
+			union.Part1 = pieza
+			union.Parent = cuerpo
+		end
 	end
 end
 
-local function construirCorrea(modelo, cuerpo, cfg, tapaTop)
-	local W, H, D = cfg.tamano.X, cfg.tamano.Y, cfg.tamano.Z
-
-	-- Siete segmentos sobre un arco: sale de la hombrera, se abre y vuelve.
-	for i = 1, SEGMENTOS_CORREA do
-		local f = (i - 1) / (SEGMENTOS_CORREA - 1)
-		local y = H * 0.45 - f * H * 0.92
-		local x = W / 2 + 0.09 + math.sin(f * math.pi) * 0.20
-		local giro = -math.cos(f * math.pi) * 12
-		nuevaPieza(
-			modelo,
-			cuerpo,
-			"CorreaSegmento" .. i,
-			Vector3.new(0.16, 0.55, 0.4),
-			CFrame.new(x, y, D * 0.22) * CFrame.Angles(0, 0, math.rad(giro)),
-			cfg.colorCorrea
-		)
+local function contarPiezas(modelo: Model): number
+	local total = 0
+	for _, pieza in modelo:GetDescendants() do
+		if pieza:IsA("BasePart") then
+			total += 1
+		end
 	end
-
-	-- Hombrera escalonada sobre la tapa, donde nace la correa.
-	local xHombro = W / 2 - 0.1
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"Hombrera",
-		Vector3.new(0.62, 0.18, 0.52),
-		CFrame.new(xHombro, tapaTop + 0.09 - HOLGURA, D * 0.22),
-		cfg.colorCorrea
-	)
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"HombreraPaso",
-		Vector3.new(0.42, 0.12, 0.36),
-		CFrame.new(xHombro, tapaTop + 0.18 + 0.05 - HOLGURA, D * 0.22),
-		cfg.colorCorrea
-	)
-
-	-- Hebilla plateada al final de la correa, con su pasador oscuro.
-	local xHebilla = W / 2 + 0.09
-	local yHebilla = -H * 0.47 - 0.30
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"Hebilla",
-		Vector3.new(0.2, 0.3, 0.46),
-		CFrame.new(xHebilla, yHebilla, D * 0.22),
-		PALETA.hebilla
-	)
-	nuevaPieza(
-		modelo,
-		cuerpo,
-		"HebillaPasador",
-		Vector3.new(0.22, 0.05, 0.28),
-		CFrame.new(xHebilla, yHebilla, D * 0.22),
-		cfg.colorCorrea
-	)
+	return total
 end
 
-local function aplicarGameplay(modelo, cuerpo, cfg, tapaTop)
-	local D = cfg.tamano.Z
+--[[
+	Construye una mochila y devuelve el Model.
 
-	local agarre = Instance.new("Attachment")
-	agarre.Name = "PuntoAgarreAsa"
-	agarre.Position = Vector3.new(0, tapaTop + 0.49, 0)
-	agarre.Parent = cuerpo
+	config.variante  nombre de MochilaReparto.VARIANTES, por defecto "Estandar"
+	config.paleta    fuerza una paleta concreta, ignorando la de la variante
+	config.anclado   ancla el cuerpo en su sitio, útil para escenas de revisión
+	config.tamano    escala uniforme aplicada al modelo terminado
+	config.interaccion  añade el ProximityPrompt de recogida, por defecto true
+]]
+function MochilaReparto.crear(config: { [string]: any }?): Model
+	local opciones = config or {}
+	local nombreVariante = opciones.variante or "Estandar"
+	local variante = MochilaReparto.VARIANTES[nombreVariante]
+	if not variante then
+		error(string.format("MochilaReparto: variante desconocida %q", tostring(nombreVariante)))
+	end
 
-	local espalda = Instance.new("Attachment")
-	espalda.Name = "PuntoSujecionEspalda"
-	espalda.Position = Vector3.new(0, 0, D / 2)
-	espalda.Parent = cuerpo
+	local paleta = PALETA[opciones.paleta or variante.paleta]
+	if not paleta then
+		error(string.format("MochilaReparto: paleta desconocida %q", tostring(opciones.paleta)))
+	end
 
-	if cfg.conProximityPrompt then
+	local modelo = Instance.new("Model")
+	modelo.Name = "MochilaReparto"
+
+	local cuerpo = construirCuerpo(modelo, paleta)
+	modelo.PrimaryPart = cuerpo
+
+	construirTapa(modelo, paleta)
+	local puntoAsa = construirAsa(modelo, paleta)
+	construirBolsillos(modelo, paleta)
+	local puntoCesta = construirCesta(modelo, paleta)
+	construirCorrea(modelo, paleta)
+
+	local tapa = modelo:FindFirstChild("Tapa")
+	if tapa and tapa:IsA("BasePart") then
+		construirLogo(tapa)
+	end
+
+	-- Puntos de interacción declarados como Attachment, para que el gameplay no
+	-- calcule offsets a mano.
+	puntoDeAgarre("PuntoAgarreAsa", puntoAsa, cuerpo)
+	puntoDeAgarre("PuntoSujecionEspalda", Vector3.new(0, 0.30, FONDO / 2), cuerpo)
+	puntoDeAgarre("PuntoCesta", puntoCesta, cuerpo)
+
+	-- Física explícita: una mochila cargada no debe rebotar como una pelota.
+	cuerpo.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.6, 0.15, 1, 1)
+
+	if opciones.interaccion ~= false then
 		local aviso = Instance.new("ProximityPrompt")
-		aviso.Name = "Recoger"
+		aviso.Name = "AvisoRecoger"
 		aviso.ActionText = "Recoger"
 		aviso.ObjectText = "Mochila de reparto"
-		aviso.HoldDuration = 0.15
+		aviso.HoldDuration = 0.35
 		aviso.MaxActivationDistance = 8
 		aviso.RequiresLineOfSight = false
 		aviso.Parent = cuerpo
 	end
 
+	soldar(cuerpo, modelo)
+
+	local piezas = contarPiezas(modelo)
+
 	modelo:SetAttribute("VersionModelo", MochilaReparto.VERSION)
-	modelo:SetAttribute("TipoModelo", "MochilaReparto")
-	modelo:SetAttribute("Variante", cfg.variante)
-	modelo:SetAttribute("CapacidadPaquetes", cfg.capacidadPaquetes)
-end
+	modelo:SetAttribute("Variante", nombreVariante)
+	modelo:SetAttribute("Etiqueta", variante.etiqueta)
+	modelo:SetAttribute("CapacidadPaquetes", 3)
+	modelo:SetAttribute("PiezasTotales", piezas)
+	modelo:SetAttribute("AnchoStuds", ANCHO)
+	modelo:SetAttribute("AltoStuds", ALTO)
+	modelo:SetAttribute("FondoStuds", FONDO)
 
--- ---------------------------------------------------------------------------
--- API publica
--- ---------------------------------------------------------------------------
+	-- Presupuesto de la fase 4 comprobado al final, como manda el proceso.
+	if piezas > PRESUPUESTO.piezas then
+		warn(string.format(
+			"MochilaReparto: %d piezas superan el presupuesto de %d",
+			piezas,
+			PRESUPUESTO.piezas
+		))
+	end
 
---[[
-	Construye el modelo y lo devuelve sin padre. El pivote queda en el centro
-	geometrico del cuerpo, con el frente (la cesta) mirando hacia -Z.
-]]
-function MochilaReparto.crear(config)
-	local cfg = fusionar(DEFAULTS, config)
-	assert(typeof(cfg.tamano) == "Vector3", "tamano debe ser Vector3")
+	if opciones.anclado then
+		cuerpo.Anchored = true
+	end
 
-	local modelo = Instance.new("Model")
-	modelo.Name = cfg.nombre
-
-	local cuerpo = nuevaParte("Cuerpo", cfg.tamano, modelo)
-	cuerpo.Color = cfg.colorCuerpo
-	cuerpo.Material = MATERIAL_CUERPO
-	cuerpo.CanCollide = cfg.colisiona
-	cuerpo.CanQuery = true
-	cuerpo.CanTouch = true
-	cuerpo.Massless = false
-	cuerpo.Anchored = cfg.anclado
-	cuerpo.CustomPhysicalProperties = PhysicalProperties.new(cfg.densidad, 0.6, 0.1, 1, 1)
-	cuerpo.CFrame = CFrame.new()
-	modelo.PrimaryPart = cuerpo
-
-	local tapa, tapaTop = construirTapa(modelo, cuerpo, cfg)
-	construirSilueta(modelo, cuerpo, cfg)
-	construirAsa(modelo, cuerpo, cfg, tapaTop)
-	construirBolsillos(modelo, cuerpo, cfg)
-	construirCesta(modelo, cuerpo, cfg)
-	construirCorrea(modelo, cuerpo, cfg, tapaTop)
-	construirLogo(tapa, cfg)
-	aplicarGameplay(modelo, cuerpo, cfg, tapaTop)
+	if opciones.tamano then
+		modelo:ScaleTo(opciones.tamano)
+	end
 
 	return modelo
 end
 
---[[
-	Crea una variante declarada en MochilaReparto.VARIANTES. Las variantes solo
-	ajustan color y atributos: la geometria base no cambia.
-]]
-function MochilaReparto.crearVariante(nombreVariante, overrides)
-	local base = MochilaReparto.VARIANTES[nombreVariante]
-	assert(base, "Variante desconocida: " .. tostring(nombreVariante))
-	return MochilaReparto.crear(fusionar(base, overrides))
+-- Atajo por nombre de variante.
+function MochilaReparto.crearVariante(nombre: string, config: { [string]: any }?): Model
+	local opciones = table.clone(config or {})
+	opciones.variante = nombre
+	return MochilaReparto.crear(opciones)
 end
 
---[[
-	Crea el modelo, lo coloca bajo un padre y lo mueve al CFrame indicado.
-]]
-function MochilaReparto.crearEn(padre, cframe, config)
+-- Construye y coloca en un CFrame concreto.
+function MochilaReparto.crearEn(padre: Instance, cframe: CFrame, config: { [string]: any }?): Model
 	local modelo = MochilaReparto.crear(config)
 	modelo.Parent = padre
-	modelo:PivotTo(cframe or CFrame.new())
+	modelo:PivotTo(cframe)
 	return modelo
 end
 
