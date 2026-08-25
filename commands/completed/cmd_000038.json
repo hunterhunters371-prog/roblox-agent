@@ -1,0 +1,39 @@
+{
+"version":"0.1",
+"id":"cmd_000038",
+"title":"S1b · Estructura de House_5 + marcador y prompt (reemisión de cmd_000032, parte 2 de 3)",
+"created_by":"notion-agent",
+"created_at":"2026-08-24T22:30:00Z",
+"request":"Reconstruye la estructura de House_5 tal como la definía cmd_000032, rechazado con VALIDATION_FAILED por truncamiento de escritura. Geometría idéntica a memory/WORLD.md §3: entrada al este, cumbrera girada 90 grados, anexo lateral y chimenea. Este comando además repara la única operación fallida de cmd_000033: el humo de House_5_Chimney (PATH_NOT_FOUND porque la chimenea no existía); al ir la estructura primero dentro de este mismo comando, el ensure_instance ya resuelve. La decoración de cmd_000033 se omite por nombre y no se duplica. Marcador y ProximityPrompt según el contrato de WORLD.md.",
+"options":{"require_approval":true,"create_waypoint":true},
+"operations":[
+{"op":"build_from_spec","id":"op_1","parts":[
+{"class":"Part","name":"House_5_Floor","parent":"Workspace.Delivery60.Destinations","size":[12,1,12],"position":[-20,0.5,300],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallN","parent":"Workspace.Delivery60.Destinations","size":[12,6,1],"position":[-20,4,294.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallS","parent":"Workspace.Delivery60.Destinations","size":[12,6,1],"position":[-20,4,305.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallW","parent":"Workspace.Delivery60.Destinations","size":[1,6,12],"position":[-25.5,4,300],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallE_N","parent":"Workspace.Delivery60.Destinations","size":[1,6,4],"position":[-14.5,4,296],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallE_S","parent":"Workspace.Delivery60.Destinations","size":[1,6,4],"position":[-14.5,4,304],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_WallE_Lintel","parent":"Workspace.Delivery60.Destinations","size":[1,1,4],"position":[-14.5,6.5,300],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_Roof","parent":"Workspace.Delivery60.Destinations","size":[13,1,13],"position":[-20,7.5,300],"properties":{"Color":[180,90,70],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_RoofE","parent":"Workspace.Delivery60.Destinations","size":[7.51,0.4,13.5],"position":[-16.75,9.876,300],"rotation":[0,0,-30],"properties":{"Color":[180,90,70],"Material":"Slate"}},
+{"class":"Part","name":"House_5_RoofW","parent":"Workspace.Delivery60.Destinations","size":[7.51,0.4,13.5],"position":[-23.25,9.876,300],"rotation":[0,0,30],"properties":{"Color":[180,90,70],"Material":"Slate"}},
+{"class":"Part","name":"House_5_GableN_1","parent":"Workspace.Delivery60.Destinations","size":[10.83,1.251,1],"position":[-20,8.626,294.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_GableN_2","parent":"Workspace.Delivery60.Destinations","size":[6.5,1.251,1],"position":[-20,9.877,294.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_GableN_3","parent":"Workspace.Delivery60.Destinations","size":[2.17,1.251,1],"position":[-20,11.128,294.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_GableS_1","parent":"Workspace.Delivery60.Destinations","size":[10.83,1.251,1],"position":[-20,8.626,305.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_GableS_2","parent":"Workspace.Delivery60.Destinations","size":[6.5,1.251,1],"position":[-20,9.877,305.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_GableS_3","parent":"Workspace.Delivery60.Destinations","size":[2.17,1.251,1],"position":[-20,11.128,305.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_Chimney","parent":"Workspace.Delivery60.Destinations","size":[1.6,6,1.6],"position":[-23,10,303],"properties":{"Color":[130,80,70],"Material":"Brick"}},
+{"class":"Part","name":"House_5_Annex","parent":"Workspace.Delivery60.Destinations","size":[6,4,7],"position":[-20,3,290.5],"properties":{"Color":[235,220,190],"Material":"SmoothPlastic"}},
+{"class":"Part","name":"House_5_Annex_Roof","parent":"Workspace.Delivery60.Destinations","size":[7,0.5,8],"position":[-20,5.25,290.5],"properties":{"Color":[180,90,70],"Material":"Slate"}}
+]},
+{"op":"build_from_spec","id":"op_2","parts":[
+{"class":"Part","name":"House_5_Marker","parent":"Workspace.Delivery60.Destinations","size":[4,0.2,4],"position":[-12.2,0.3,300],"properties":{"Color":[255,220,40],"Material":"Neon","CanCollide":false}}
+]},
+{"op":"ensure_instance","id":"op_3","path":"Workspace.Delivery60.Destinations.House_5_Marker.DeliveryPrompt","class":"ProximityPrompt","properties":{"ActionText":"Deliver","ObjectText":"House #5"}},
+{"op":"ensure_instance","id":"op_4","path":"Workspace.Delivery60.Destinations.House_5_Chimney.Smoke","class":"Smoke","properties":{"Size":2.5,"Opacity":0.22,"RiseVelocity":9,"Color":[225,225,225]}},
+{"op":"ensure_instance","id":"op_5","path":"Workspace.Delivery60.Destinations.House_5_PorchLamp.Light","class":"PointLight","properties":{"Brightness":1.6,"Range":16,"Color":[255,235,190]}},
+{"op":"inspect_tree","id":"op_6","path":"Workspace.Delivery60.Destinations","max_depth":1}
+]
+}
