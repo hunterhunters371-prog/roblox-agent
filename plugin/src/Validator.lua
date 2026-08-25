@@ -4,6 +4,7 @@
 -- v3.0: lint_scripts y mirror_place (solo lectura, sin campos obligatorios).
 -- v3.1: set_reference y weld_parts + clases de vehiculo (constraints, VehicleSeat,
 -- movers y Animation) para poder ensamblar vehiculos como modelos de verdad.
+-- v3.2: export_model (solo lectura) - volcado 3D completo de un modelo.
 
 local Config = require(script.Parent.Config)
 
@@ -77,6 +78,7 @@ local REQUIRED = {
 	mirror_place = {}, -- v3.0: todo opcional (path, max_depth, max_instances)
 	set_reference = { "path", "property" }, -- v3.1: target_path opcional (null = limpiar)
 	weld_parts = { "path_a", "path_b" }, -- v3.1
+	export_model = { "path" }, -- v3.2: volcado 3D (solo lectura)
 }
 
 -- Campos que contienen paths y deben validarse contra las raices permitidas.
@@ -161,7 +163,7 @@ function Validator.ValidateCommand(cmd)
 				return fail("VALIDATION_FAILED", ("set_reference (%s): property debe ser string"):format(op.id))
 			end
 		end
-		if op.op == "lint_scripts" or op.op == "mirror_place" then
+		if op.op == "lint_scripts" or op.op == "mirror_place" or op.op == "export_model" then
 			if op.max_depth ~= nil and type(op.max_depth) ~= "number" then
 				return fail("VALIDATION_FAILED", ("%s (%s): max_depth debe ser numero"):format(op.op, op.id))
 			end
@@ -170,6 +172,9 @@ function Validator.ValidateCommand(cmd)
 			end
 			if op.max_instances ~= nil and type(op.max_instances) ~= "number" then
 				return fail("VALIDATION_FAILED", ("%s (%s): max_instances debe ser numero"):format(op.op, op.id))
+			end
+			if op.max_nodes ~= nil and type(op.max_nodes) ~= "number" then
+				return fail("VALIDATION_FAILED", ("%s (%s): max_nodes debe ser numero"):format(op.op, op.id))
 			end
 		end
 		if (op.op == "ensure_instance" or op.op == "create_instance") and not CLASSES[op.class] then
