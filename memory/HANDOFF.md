@@ -1,6 +1,6 @@
 # HANDOFF - DELIVERY: 60 SECONDS
 
-> Estado del proyecto a **2026-08-24 23:55 (America/Bogota)**, cola verificada contra el repo.
+> Estado del proyecto a **2026-08-25 09:45 (America/Bogota)**, cola verificada contra el repo.
 > Este archivo existe para que un chat nuevo, sin memoria de la conversacion anterior,
 > pueda retomar el trabajo sin que haya que explicarle nada.
 > Complementos obligatorios: [`memory/WORLD.md`](./WORLD.md) (geometria exacta y contratos del
@@ -21,12 +21,20 @@ la cola de comandos, las deudas tecnicas abiertas y las reglas de trabajo que ya
 costaron errores.
 
 El juego se construye a distancia. Los cambios en Roblox Studio se hacen escribiendo
-comandos JSON en commands/pending/ que un plugin (RobloxAgentBridge v2.0.0) sincroniza
+comandos JSON en commands/pending/ que un plugin (RobloxAgentBridge v3.0.0) sincroniza
 cada 60 s y ejecuta previa aprobacion manual del usuario en Studio. El plugin se
-AUTO-ACTUALIZA: es un loader permanente que descarga el runtime de plugin/src/ segun
-plugin/version.json; para publicar una mejora del plugin basta subir los archivos y
-subir la version en version.json (el usuario pulsa Actualizar o abre el panel).
-Solo un cambio en plugin/src/init.server.lua (el loader) exige reinstalar a mano.
+AUTO-ACTUALIZA: es un loader permanente (v2.1) que descarga el runtime de plugin/src/
+segun plugin/version.json; para publicar una mejora del plugin basta subir los archivos
+y subir la version en version.json. Solo un cambio en plugin/src/init.server.lua (el
+loader) exige reinstalar a mano (ruta principal: plugin/RobloxAgentBridge.rbxmx
+precompilado, boton Download raw file; rokit.toml ya existe en la raiz para compilar).
+
+El plugin ademas PUBLICA SOLO (AutoSense, v3.0.0):
+- lint/findings.json: lint estatico de todos los scripts, cada 10 min si algo cambio.
+  Un workflow (.github/workflows/lint-issues.yml) convierte hallazgos en issues con
+  el arreglo sugerido (label lint) y los cierra solos al resolverse.
+- place/mirror.json: espejo compacto del estado actual del place, cada 5 min si algo
+  cambio. LEERLO para conocer el estado real de Studio sin adivinar nada.
 
 Antes de escribir cualquier comando nuevo:
 1. Lista commands/pending/, completed/, failed/ y rejected/ para ver el estado real de
@@ -34,12 +42,12 @@ Antes de escribir cualquier comando nuevo:
    inspecciones se guardan como comandos. Nunca deduzcas el id del ultimo que
    escribiste tu.
 2. Si dudas del formato exacto de una operacion, lee plugin/src/Ops.lua (y
-   plugin/src/OpsExtra.lua para las ops nuevas de la v2.0, p. ej. insert_asset).
+   plugin/src/OpsExtra.lua para las ops nuevas: insert_asset, lint_scripts,
+   mirror_place).
 3. NUNCA inventes el contenido de un script existente. set_script_source reemplaza
    el archivo entero, asi que primero hay que leer el fuente verbatim desde el
    comando de commands/completed/ que lo creo.
 4. Cada archivo que escribas debe pesar menos de 16 KB y usar JSON compacto.
-   Un archivo mas grande se trunca a mitad de escritura y GitHub lo acepta roto.
 5. Escribe los comandos de uno en uno, nunca en paralelo (da conflictos 409). Para
    varios archivos a la vez, una sola llamada push_files: es atomica.
 6. Verifica en la documentacion oficial toda clase, propiedad o enum que el proyecto
@@ -102,12 +110,17 @@ El otro repo del usuario, `hunterhunters371-prog/maximizador-ia`, no forma parte
   `House_6` y el cruce N-S. Paleta Metal 70,74,82 y Concrete 150,150,155. Las rampas van a 30
   grados para que sigan siendo subibles sin salto.
 
-### Cola real (verificada el 2026-08-25 04:10Z contra el repo)
+### Cola real (verificada el 2026-08-25 14:45Z contra el repo)
 
-`commands/pending/`, `approved/` y `processing/` estan **vacias**: no hay nada esperando
-aprobacion en Studio.
+`commands/pending/` tiene DOS comandos esperando aprobacion en Studio:
 
-**Siguiente id libre: `cmd_000046`.**
+- **`cmd_000046`** — autos funcionales: `VehicleFactory` + `VehicleSpawner` en
+  ServerScriptService; 2 autos conducibles (HingeConstraint Motor traccion total + direccion
+  servo) en el parking del HQ (x=-84 y -76, z=-30). Se reponen solos. Constantes tuneables
+  arriba del modulo; `driveSign`/`steerSign` = -1 por defecto (poner a 1 si va invertido).
+- **`cmd_000047`** — lint de todos los scripts + espejo de Workspace (solo lectura).
+
+**Siguiente id libre: `cmd_000048`.**
 
 `cmd_000045` no lo escribio el agente: es un `inspect_tree` de `Workspace` lanzado desde el
 plugin el 2026-08-25 a las 04:09Z. Las inspecciones del plugin consumen ids de la secuencia.
@@ -127,14 +140,22 @@ referencia**, asi que nunca aparece en una entrega.
 No hay acceso directo a Roblox Studio. El ciclo es:
 
 1. Se escribe un JSON en `commands/pending/`.
-2. El plugin **RobloxAgentBridge v2.0.0** hace Sync cada 60 s (o al pulsar el boton) y lo baja.
+2. El plugin **RobloxAgentBridge v3.0.0** hace Sync cada 60 s (o al pulsar el boton) y lo baja.
 3. El usuario lo **aprueba manualmente** en el panel COMANDOS del plugin.
 4. El plugin ejecuta las operaciones y sube `commands/completed/cmd_XXXXXX.result.json`.
 
-Arquitectura del plugin (v2.0): `init.server.lua` es un **loader** permanente (toolbar, widget,
-boton **Actualizar**); el runtime (`Main`, `UI`, `Inspect`, `Chat`, `Ops`, `OpsExtra`,
-`Executor`, `Validator`, `GitHub`, `Config`, `Base64`, `PathResolver`) se descarga de
-`plugin/src/` segun `plugin/version.json` y se reinicia en caliente con rollback automatico.
+Arquitectura del plugin (v3.0.0): `init.server.lua` es un **loader** permanente (v2.1: toolbar,
+widget, boton **Actualizar**); el runtime (`Main`, `UI`, `Inspect`, `Chat`, `Ops`, `OpsExtra`,
+`Executor`, `Validator`, `GitHub`, `Config`, `Base64`, `PathResolver`, **`Lint`, `AutoSense`**)
+se descarga de `plugin/src/` segun `plugin/version.json` y se reinicia en caliente con rollback
+automatico.
+
+**AutoSense (v3.0.0)**: con el panel abierto y token guardado, el plugin comprueba cada 10 min
+el lint de todos los scripts y cada 5 min el espejo del place, y publica `lint/findings.json` y
+`place/mirror.json` **solo cuando algo cambia** (firma FNV-1a en plugin settings). El workflow
+`lint-issues` abre/reabre/cierra issues con label `lint` y el arreglo sugerido. Flags en
+`Config.lua`: `AUTO_LINT`, `AUTO_LINT_SECONDS`, `AUTO_MIRROR`, `AUTO_MIRROR_SECONDS`,
+`MIRROR_MAX_NODES`.
 
 Requisito en Studio: **Game Settings > Security > Enable Studio Access to API Services**.
 Los objetos creados llevan el atributo `_RBX_Bridge` con el id del comando que los creo.
@@ -146,7 +167,7 @@ toolbar, **Actualizar**. Place de trabajo: `Lugar de BosneSUS_V2: 08222026_3`.
 ```json
 {
   "version": "0.1",
-  "id": "cmd_000046",
+  "id": "cmd_000048",
   "title": "maximo 200 caracteres",
   "created_by": "notion-agent",
   "created_at": "2026-08-25T00:00:00Z",
@@ -181,10 +202,14 @@ group_instances   { paths, model_name, parent }
 build_structure   { structure, params }
 build_from_spec   { parts[ { class*, name, properties, position, rotation, size, parent, anchored } ] }
 insert_asset      { asset_id*, path?, position?, name?, allow_scripts? }   <- v2.0: Toolbox
+lint_scripts      { path?, max_findings? }                               <- v3.0: solo lectura
+mirror_place      { path?, max_depth?, max_instances? }                  <- v3.0: solo lectura
 ```
 
 `insert_asset` inserta de la Toolbox por ID exacto (no hay busqueda por nombre) y **elimina los
 scripts del asset** por defecto; `allow_scripts: true` los conserva y fuerza aprobacion humana.
+`lint_scripts`/`mirror_place` devuelven sus resultados en `data` del result.json y no crean
+waypoint (son solo lectura).
 
 ### Codificacion de valores
 
@@ -245,13 +270,13 @@ Brick, Glass, Metal.
 
 | # | Problema | Gravedad | Estado |
 | --- | --- | --- | --- |
-| 1 | **Solvencia de las entregas.** El juego sortea tipo de paquete y destino de forma independiente. Un Heavy (crucero 13.52 studs/s) hacia `House_3` (786 studs) necesita ~58 s de 60: entrega imposible. | **Alta** | Fix disenado, sin aplicar. Ver seccion 6. |
-| 2 | ~~Bug del plugin: PUT sin `sha`.~~ | ~~Alta~~ | **RESUELTA (2026-08-24)**, v1.9.4. Pendiente solo que el usuario instale el loader v2.0 UNA vez. |
+| 1 | **Solvencia de las entregas.** El juego sortea tipo de paquete y destino de forma independiente. Un Heavy (crucero 13.52 studs/s) hacia `House_3` (786 studs) necesita ~58 s de 60: entrega imposible. OJO: los autos de `cmd_000046` (~50 studs/s) vuelven todo muy holgado; decidir si limitan paquetes o pagan menos. | **Alta** | Fix disenado, sin aplicar. Ver seccion 6. |
+| 2 | ~~Bug del plugin: PUT sin `sha`.~~ | ~~Alta~~ | **RESUELTA** (v1.9.4; loader v2.1 instalado via `.rbxmx` el 2026-08-25). |
 | 3 | **`House_2_Door` cerrada.** `cmd_000029` aplico `rotation [0,90,0]` a todas las puertas; en `House_2` el hueco esta en un muro de normal X y la hoja tapa el hueco con `CanCollide` true. | Baja | Sin corregir. Leer antes su posicion con `inspect_instance`. |
 | 4 | **Puertas de 5 studs** en `House_1`, `_2`, `_3`. El avatar mide ~5: no se puede entrar. Las casas nuevas ya van de 7. | Media | Sin corregir. |
-| 5 | `RunStateChanged is not a valid member of RunService`. | Nula | Inofensivo. No aparece en el codigo del repo; verificar tras instalar el loader v2.0. |
-| 6 | **El espejo de Rojo no refleja el juego.** `project/src/` solo contiene `ReplicatedStorage/Modelos/PaqueteNormal.lua` y `ServerScriptService/DemoPaquetes.server.lua`: falta todo `Delivery60`. Ademas `project/default.project.json` no mapea `StarterPlayer`. La fuente de verdad del codigo es `commands/completed/`. | Media | Sin corregir. Hay sesion de Rojo activa (`ServerStorage.__Rojo_SessionLock`). |
-| 7 | **`cmd_000043` rechazado con `VALIDATION_FAILED` / "JSON invalido"** (2026-08-25T03:58:55Z), el mismo sintoma que `cmd_000032` (2026-08-22). El plugin no pudo decodificar el archivo, asi que los modificadores estrella (Fragile, Public) y los seis tipos de paquete no llegaron al juego. | **Alta** | Sin corregir. Sospecha principal: caracteres no ASCII. `cmd_000043` llevaba emojis en los iconos de los modificadores; `cmd_000044`, escrito despues y solo con ASCII, paso sin problema. Al reemitir: partirlo en dos comandos, iconos en ASCII y comprobar el peso. |
+| 5 | `RunStateChanged is not a valid member of RunService`. | Nula | Inofensivo. No aparece en el codigo del repo; verificar con el lint de v3.0.0. |
+| 6 | **El espejo de Rojo no refleja el juego.** `project/src/` solo contiene `ReplicatedStorage/Modelos/PaqueteNormal.lua` y `ServerScriptService/DemoPaquetes.server.lua`: falta todo `Delivery60`. Ademas `project/default.project.json` no mapea `StarterPlayer`. La fuente de verdad del codigo es `commands/completed/`. | Media | Parcialmente cubierta por `place/mirror.json` (AutoSense v3.0.0). Sin corregir el mapeo de Rojo. |
+| 7 | **`cmd_000043` rechazado con `VALIDATION_FAILED` / "JSON invalido"** (2026-08-25T03:58:55Z), el mismo sintoma que `cmd_000032` (2026-08-22). El plugin no pudo decodificar el archivo, asi que los modificadores estrella (Fragile, Public) y los seis tipos de paquete no llegaron al juego. | **Alta** | Sin corregir. Sospecha principal: caracteres no ASCII. Al reemitir: partirlo en dos comandos, iconos en ASCII y comprobar el peso. |
 | 8 | `cmd_000038` esta en `completed/` **sin** su `.result.json`. | Nula | Victima del bug viejo del `sha`. Se puede escribir un recibo marcado como recuperado. |
 
 ---
@@ -263,8 +288,8 @@ Brick, Glass, Metal.
    uno con los modulos `Modifiers.Fragile` y `Modifiers.Public`, otro con la reescritura de
    `Data.PackageTypes` (conservando Normal, Heavy y Explosive byte a byte y anadiendo Fragile,
    NoJump y Public). Leer antes los fuentes verbatim de `commands/completed/cmd_000021.json`.
-2. **Instalar el loader v2.0 UNA vez**: borrar el plugin viejo de la carpeta de plugins y seguir
-   `plugin/README.md`. Despues las mejoras del plugin llegan solas con el boton Actualizar.
+2. **Ejecutar en Studio `cmd_000046` (autos) y `cmd_000047` (lint + espejo)**: Sync, Aprobar,
+   Ejecutar. Despues el auto-lint y el espejo quedan corriendo solos (AutoSense).
 3. **Arreglar la solvencia (deuda 1).** Diseno cerrado, pendiente de releer los fuentes de
    `commands/completed/cmd_000024.json` (`PackageFactory`, `DestinationRegistry`, `PlayerData`,
    `RewardService`, `DeliveryService`):
@@ -278,6 +303,7 @@ Brick, Glass, Metal.
      `Modifiers.Heavy.SpeedMultiplier = 0.65`) para no reescribir `PackageTypes`.
    - Resultado esperado: Heavy queda excluido de `House_2` (46.3 s) y `House_3` (58.2 s).
    - Mas urgente cuando existan seis tipos de paquete: hacerlo despues del paso 1.
+   - Con autos: valorar prohibir paquete Explosive en auto o reducir paga en auto.
 4. **Playtest guiado** (Plan de desarrollo, seccion 7): cronometrar el recorrido real a cada
    destino, por ruta segura y por atajo, y validar `pathDistanceStuds` y las bandas de
    25/35/45/55 s.
@@ -286,22 +312,26 @@ Brick, Glass, Metal.
 6. **Sincronizar el espejo de Rojo y mapear `StarterPlayer`** (deuda 6). Guia oficial en
    `projects/external-tools.md` de `Roblox/creator-docs`.
 7. Saldar las deudas 3 y 4 (puertas).
-8. Sprint 2: mas detalle urbano (semaforos, cruces, obras, vallas), trafico y NPCs. Para props
-   urbanos, considerar `insert_asset` con IDs de la Toolbox en vez de construir todo a mano.
-9. Diferido: Round System de EGGBOUND.
+8. **Carroceria de Toolbox para los autos**: el usuario pasa `asset_id`(s) del modelo que le
+   guste; se inserta SIN scripts (`allow_scripts:false`) y se suelda sobre el chasis de
+   `VehicleFactory`. Nunca adivinar IDs.
+9. **Pregunta abierta al usuario**: que hacia el boton "Replicar" de la v1.9.3 local (nunca se
+   subio al repo; la UI del repo es v1.8 y no lo tiene). Reimplementarlo como op si se describe.
+10. Sprint 2: mas detalle urbano (semaforos, cruces, obras, vallas), trafico y NPCs.
+11. Diferido: Round System de EGGBOUND.
 
 ---
 
 ## 7. Historial de la cola
 
-Verificado contra el repo el 2026-08-25 04:10Z.
+Verificado contra el repo el 2026-08-25 14:45Z.
 
 ```
 completed : cmd_000001..013, 015, 017..027, 029, 030, 031, 034, 035, 036, 037,
             038 (*), 039, 040, 041, 042, 044, 045
 failed    : cmd_000001, cmd_000016, cmd_000033
 rejected  : cmd_000011, cmd_000012, cmd_000014, cmd_000032, cmd_000043
-pending   : vacia
+pending   : cmd_000046 (autos), cmd_000047 (lint + espejo)
 retirado  : cmd_000028 (redundante, nunca ejecutado)
 
 (*) cmd_000038 no tiene .result.json. Ver deuda 8.
@@ -322,4 +352,14 @@ Los dos rechazos por `VALIDATION_FAILED` con el mensaje "JSON invalido" son `cmd
 - **v1.9.4** (2026-08-24): fix PUT sin sha en `GitHub.lua` (deuda 2).
 - **v2.0.0** (2026-08-24): loader + runtime auto-actualizable (boton Actualizar, rollback
   automatico); runtime dividido en `Main`/`Inspect`/`Chat`; ops nuevas en `OpsExtra`; nueva op
-  `insert_asset`; `Executor` fusiona `OpsExtra`. Requiere UNA reinstalacion manual del loader.
+  `insert_asset`; `Executor` fusiona `OpsExtra`.
+- **v2.0.1 / loader v2.1** (2026-08-24): chip de version sincronizado, cache-bust en la
+  descarga, `ClickableWhenViewportHidden`; `plugin/RobloxAgentBridge.rbxmx` precompilado (ruta
+  principal de instalacion) y `rokit.toml` en la raiz (`rojo-rbx/rojo@7.4.4`).
+- **v3.0.0** (2026-08-25): `Lint.lua` (analisis estatico propio: balance de bloques y pares,
+  globals no declarados, APIs deprecadas, con arreglo sugerido por hallazgo), `AutoSense.lua`
+  (auto-lint a `lint/findings.json` cada 10 min y espejo a `place/mirror.json` cada 5 min, solo
+  cuando algo cambia), ops `lint_scripts` y `mirror_place` (solo lectura), workflow
+  `.github/workflows/lint-issues.yml` + `tools/lint-issues.mjs` (issues automaticos con label
+  `lint`: crea, reabre si reaparece, cierra si se resuelve). 14 archivos de runtime en
+  `version.json`.
