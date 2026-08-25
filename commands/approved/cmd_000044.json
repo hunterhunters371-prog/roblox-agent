@@ -1,0 +1,29 @@
+{
+"version":"0.1",
+"id":"cmd_000044",
+"title":"S2 · Capa de rutas v1: pasarela oeste, rampas de azotea (tienda y House_6) y callejón oeste",
+"created_by":"notion-agent",
+"created_at":"2026-08-25T04:05:00Z",
+"request":"Desarrolla la mecánica «El mapa compacto con rutas alternativas» (GDD: cada destino con 2-3 formas de llegar; atajos = callejones, tejados, escaleras). Es construcción de mundo, no código: se usa solo geometría documentada en memory/WORLD.md, sin adivinar coordenadas, y todo en terreno vacío para no colisionar con lo construido. Diseño: (1) PASARELA OESTE en x=-20 — dos rampas a 30° (caminables, NoJump-safe) y plataforma a y=7 sobre la calzada (hueco libre de 6 studs: el avatar mide ~5 y el tráfico futuro pasa por debajo): cruce norte-sur sin tocar la calle. (2) RAMPA DE AZOTEA DE LA TIENDA — 30 studs de rampa hasta el tejado (y=15) por la cara oeste (z=-42.5, lejos del parking documentado en (-80,-30)): convierte la tienda en hub vertical; saltar desde el tejado es la variante peligrosa porque la caída registra impacto y daña paquetes Fragile/Explosive (interacción emergente diseñada, sin código nuevo). (3) RAMPA DE AZOTEA DE HOUSE_6 — sube por encima del parapeto (pasa 1.5 studs por encima, sin tocarlo ni la marquesina ni el marcador) y cae al tejado plano: ruta rápida/peligrosa real para ese destino. (4) CALLEJÓN OESTE — tres muros de 8 de alto formando un corredor de 120 studs paralelo a RoadX por z=-12 (desde el PickupPad hacia House_4/House_1), con corte norte de 8 studs en x=-126: la ruta rápida protegida frente a la calzada (segura) y el campo abierto (peligrosa). Paleta: Metal 70,74,82 y Concrete 150,150,155 — el amarillo de entrega queda reservado a marcadores (WORLD §6). build_from_spec omite nombres existentes: reejecutar no duplica. Cobertura v1 honesta: corredor oeste + cruce + 2 azoteas; House_2/3/5 quedan para la v2 tras medir tiempos reales en playtest (HANDOFF §6 paso 3). Aprobar después de cmd_000043 (no comparten archivos, pero se respeta el orden numérico).",
+"options":{"require_approval":true,"create_waypoint":true},
+"operations":[
+{"op":"ensure_instance","id":"op_1","path":"Workspace.Delivery60.Routes","class":"Folder"},
+{"op":"build_from_spec","id":"op_2","parts":[
+{"class":"Part","name":"Ruta_Pasarela_Plataforma","parent":"Workspace.Delivery60.Routes","size":[6,1,16],"position":[-20,6.5,0],"properties":{"Color":[70,74,82],"Material":"Metal"}},
+{"class":"Part","name":"Ruta_Pasarela_RampaS","parent":"Workspace.Delivery60.Routes","size":[6,1,14],"position":[-20,3.5,14],"rotation":[30,0,0],"properties":{"Color":[70,74,82],"Material":"Metal"}},
+{"class":"Part","name":"Ruta_Pasarela_RampaN","parent":"Workspace.Delivery60.Routes","size":[6,1,14],"position":[-20,3.5,-14],"rotation":[-30,0,0],"properties":{"Color":[70,74,82],"Material":"Metal"}}
+]},
+{"op":"build_from_spec","id":"op_3","parts":[
+{"class":"Part","name":"Ruta_Tienda_RampaAzotea","parent":"Workspace.Delivery60.Routes","size":[30,1,6],"position":[-80,7.5,-42.5],"rotation":[0,0,30],"properties":{"Color":[70,74,82],"Material":"Metal"}}
+]},
+{"op":"build_from_spec","id":"op_4","parts":[
+{"class":"Part","name":"Ruta_H6_RampaAzotea","parent":"Workspace.Delivery60.Routes","size":[6,1,24],"position":[400,6.1,-3.1],"rotation":[30,0,0],"properties":{"Color":[70,74,82],"Material":"Metal"}}
+]},
+{"op":"build_from_spec","id":"op_5","parts":[
+{"class":"Part","name":"Ruta_Callejon_MuroS","parent":"Workspace.Delivery60.Routes","size":[120,8,1],"position":[-130,4,-7.5],"properties":{"Color":[150,150,155],"Material":"Concrete"}},
+{"class":"Part","name":"Ruta_Callejon_MuroN_W","parent":"Workspace.Delivery60.Routes","size":[52,8,1],"position":[-96,4,-16.5],"properties":{"Color":[150,150,155],"Material":"Concrete"}},
+{"class":"Part","name":"Ruta_Callejon_MuroN_E","parent":"Workspace.Delivery60.Routes","size":[60,8,1],"position":[-160,4,-16.5],"properties":{"Color":[150,150,155],"Material":"Concrete"}}
+]},
+{"op":"inspect_tree","id":"op_6","path":"Workspace.Delivery60.Routes","max_depth":1}
+]
+}
