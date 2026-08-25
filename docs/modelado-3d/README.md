@@ -11,18 +11,22 @@ mejorar un modelo empieza aquí.
 | [`00-proceso-modelado-3d.md`](00-proceso-modelado-3d.md) | Pipeline completo paso a paso. Es el proceso que se aplica siempre, para cualquier modelo. |
 | [`01-paquete-normal.spec.md`](01-paquete-normal.spec.md) | Especificación del modelo base `PaqueteNormal`: medidas, jerarquía, atributos, variantes y criterios de aceptación. |
 | [`02-registro-iteraciones.md`](02-registro-iteraciones.md) | Historial de versiones, rechazos del revisor y reglas nuevas que salieron de cada rechazo. |
+| [`11-mochila-reparto.spec.md`](11-mochila-reparto.spec.md) | Especificación del modelo `MochilaReparto` (lámina «DELIVERY BACKPACK»): medidas, jerarquía, atributos, variantes y criterios de aceptación. |
 
 ## Dónde vive el modelo
 
 | Ruta | Qué es |
 |---|---|
-| `project/src/ReplicatedStorage/Modelos/PaqueteNormal.lua` | Constructor procedimental. Fuente de verdad de la geometría. |
-| `project/src/ServerScriptService/DemoPaquetes.server.lua` | Escena de revisión con las cinco variantes. |
+| `project/src/ReplicatedStorage/Modelos/PaqueteNormal.lua` | Constructor procedimental del paquete. Fuente de verdad de su geometría. |
+| `project/src/ServerScriptService/DemoPaquetes.server.lua` | Escena de revisión con las cinco variantes del paquete. |
+| `project/src/ReplicatedStorage/Modelos/MochilaReparto.lua` | Constructor procedimental de la mochila. Fuente de verdad de su geometría. |
+| `project/src/ServerScriptService/DemoMochilas.server.lua` | Escena de revisión con las tres variantes de la mochila. |
 
 ## Arranque rápido en Studio
 
 Con Rojo, sincroniza `project/` y ejecuta el juego: el script de demostración
-crea la fila de paquetes en `workspace.PaquetesDemo`.
+crea la fila de paquetes en `workspace.PaquetesDemo` y la de mochilas en
+`workspace.MochilasDemo`.
 
 Sin Rojo:
 
@@ -45,6 +49,13 @@ for nombre in pairs(P.VARIANTES) do
 	P.crearEn(workspace, CFrame.new(i * 2.2, 5, 0), { anclado = true })
 	i = i + 1
 end
+```
+
+Lo mismo aplica a la mochila con el módulo `MochilaReparto` y separación `3.4`:
+
+```lua
+local M = require(game.ReplicatedStorage.Modelos.MochilaReparto)
+M.crearEn(workspace, CFrame.new(0, 2.4, -8), { anclado = true })
 ```
 
 ## Regla de oro de esta carpeta
