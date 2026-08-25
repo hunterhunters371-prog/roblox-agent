@@ -1,1 +1,223 @@
--- AutoSense.lua (v3.0) - sondeo continuo del place: lint automatico de scripts y\n-- espejo del estado actual de Studio publicado en el repo (place/mirror.json).\n-- Studio no expone acceso entrante; la unica via es este plugin publicando el\n-- estado para que el agente lo lea del repo. Solo escribe cuando algo CAMBIA\n-- (firma FNV-1a del contenido), para no inundar el historial de commits.\n--\n-- init(env) arranca el sondeo y devuelve { detener }. Ademas expone\n-- AutoSense.MirrorTree, que reutiliza OpsExtra.mirror_place.\n\nlocal HttpService = game:GetService(\"HttpService\")\nlocal RunService = game:GetService(\"RunService\")\n\nlocal Config = require(script.Parent.Config)\nlocal Lint = require(script.Parent.Lint)\n\nlocal AutoSense = {}\n\nlocal function firma(texto)\n\tlocal h = 2166136261\n\tfor i = 1, #texto do\n\t\th = bit32.bxor(h, texto:byte(i))\n\t\th = (h * 16777619) % 4294967296\n\tend\n\treturn string.format(\"%08x\", h)\nend\n\nlocal function redondear(n)\n\treturn math.floor(n * 100 + 0.5) / 100\nend\n\n-- Arbol compacto: nombre, clase, posicion/tamano de BasePart, pivot de Model y\n-- lineas de los scripts (sin fuente; la fuente viaja en los snapshots de codigo).\nfunction AutoSense.MirrorTree(inst, profundidad, presupuesto)\n\tif presupuesto.n <= 0 then\n\t\treturn nil\n\tend\n\tpresupuesto.n -= 1\n\tlocal nodo = { name = inst.Name, class = inst.ClassName }\n\tif inst:IsA(\"BasePart\") then\n\t\tlocal p, s = inst.Position, inst.Size\n\t\tnodo.pos = { redondear(p.X), redondear(p.Y), redondear(p.Z) }\n\t\tnodo.size = { redondear(s.X), redondear(s.Y), redondear(s.Z) }\n\t\tif not inst.Anchored then\n\t\t\tnodo.anchored = false\n\t\tend\n\telseif inst:IsA(\"Model\") then\n\t\tlocal ok, cf = pcall(function()\n\t\t\treturn inst:GetPivot()\n\t\tend)\n\t\tif ok then\n\t\t\tnodo.pos = { redondear(cf.X), redondear(cf.Y), redondear(cf.Z) }\n\t\tend\n\telseif inst:IsA(\"LuaSourceContainer\") then\n\t\tnodo.lines = 1 + select(2, inst.Source:gsub(\"\\n\", \"\\n\"))\n\tend\n\tif profundidad > 1 then\n\t\tlocal hijos = inst:GetChildren()\n\t\tif #hijos > 0 then\n\t\t\tnodo.children = {}\n\t\t\tfor i, hijo in ipairs(hijos) do\n\t\t\t\tif i > 40 then\n\t\t\t\t\ttable.insert(nodo.children, { name = (\"y %d mas\"):format(#hijos - 40), class = \"...\" })\n\t\t\t\t\tbreak\n\t\t\t\tend\n\t\t\t\tlocal sub = AutoSense.MirrorTree(hijo, profundidad - 1, presupuesto)\n\t\t\t\tif sub then\n\t\t\t\t\ttable.insert(nodo.children, sub)\n\t\t\t\telse\n\t\t\t\t\ttable.insert(nodo.children, { name = \"...\", class = \"presupuesto agotado\" })\n\t\t\t\t\tbreak\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\n\treturn nodo\nend\n\nlocal SERVICIOS_ESPEJO = {\n\t\"Workspace\", \"ServerScriptService\", \"ServerStorage\", \"ReplicatedStorage\",\n\t\"StarterGui\", \"StarterPlayer\", \"StarterPack\", \"Lighting\", \"Teams\", \"SoundService\",\n}\n\n-- Espejo del place entero (lo que el agente lee para conocer el estado de Studio).\nfunction AutoSense.BuildMirror(maxDepth, maxNodes)\n\tlocal presupuesto = { n = maxNodes or Config.MIRROR_MAX_NODES or 2500 }\n\tlocal trees, counts = {}, {}\n\tlocal total = 0\n\tfor _, nombre in ipairs(SERVICIOS_ESPEJO) do\n\t\tlocal ok, servicio = pcall(function()\n\t\t\treturn game:GetService(nombre)\n\t\tend)\n\t\tif ok and servicio then\n\t\t\tlocal antes = presupuesto.n\n\t\t\tlocal arbol = AutoSense.MirrorTree(servicio, maxDepth or 3, presupuesto)\n\t\t\tif arbol then\n\t\t\t\ttrees[nombre] = arbol\n\t\t\t\tlocal usados = antes - presupuesto.n\n\t\t\t\tcounts[nombre] = usados\n\t\t\t\ttotal += usados\n\t\t\tend\n\t\tend\n\tend\n\treturn {\n\t\ttipo = \"espejo-place\",\n\t\tplace = game.Name,\n\t\tplace_id = game.PlaceId,\n\t\tcapturado_at = DateTime.now():ToIsoDate(),\n\t\tplay_mode = RunService:IsRunning(),\n\t\ttruncated = presupuesto.n <= 0,\n\t\tcounts = counts,\n\t\ttotal_nodes = total,\n\t\ttrees = trees,\n\t}\nend\n\nfunction AutoSense.init(env)\n\tif Config.AUTO_LINT == false and Config.AUTO_MIRROR == false then\n\t\treturn { detener = function() end }\n\tend\n\tlocal plugin = env.plugin\n\tlocal activo = true\n\tlocal ultimoLint, ultimoMirror = 0, 0\n\n\tlocal function upsertJson(path, payload, msg)\n\t\tlocal gh = env.getGithub()\n\t\tif not gh then\n\t\t\treturn false\n\t\tend\n\t\tlocal sha\n\t\tpcall(function()\n\t\t\tlocal _, s = gh:ReadJson(path)\n\t\t\tsha = s\n\t\tend)\n\t\tlocal ok, err = pcall(function()\n\t\t\tgh:WriteJson(path, payload, msg, sha)\n\t\tend)\n\t\tif not ok then\n\t\t\tenv.reportError(\"autosense\", err)\n\t\t\treturn false\n\t\tend\n\t\treturn true\n\tend\n\n\tlocal function firmaDe(tabla)\n\t\tlocal ok, texto = pcall(function()\n\t\t\treturn HttpService:JSONEncode(tabla)\n\t\tend)\n\t\tif not ok then\n\t\t\treturn nil\n\t\tend\n\t\treturn firma(texto)\n\tend\n\n\tlocal function pasadaLint()\n\t\tlocal findings = Lint.Place()\n\t\tlocal sig = firmaDe(findings)\n\t\tif not sig or sig == plugin:GetSetting(\"autosense_lint_sig\") then\n\t\t\treturn\n\t\tend\n\t\tlocal enviados = findings\n\t\tif #findings > 300 then\n\t\t\tenviados = {}\n\t\t\tfor i = 1, 300 do\n\t\t\t\tenviados[i] = findings[i]\n\t\t\tend\n\t\tend\n\t\tlocal ok = upsertJson(Config.PATHS.lint .. \"/findings.json\", {\n\t\t\ttipo = \"lint\",\n\t\t\tcapturado_at = env.nowIso(),\n\t\t\tplay_mode = RunService:IsRunning(),\n\t\t\ttotal = #findings,\n\t\t\ttruncated = #findings > 300,\n\t\t\tfindings = enviados,\n\t\t}, (\"lint: %d hallazgo(s)\"):format(#findings))\n\t\tif ok then\n\t\t\tplugin:SetSetting(\"autosense_lint_sig\", sig)\n\t\t\tpcall(function()\n\t\t\t\tenv.getUi():Log((\"Auto-lint: %d hallazgo(s) -> lint/findings.json\"):format(#findings))\n\t\t\tend)\n\t\tend\n\tend\n\n\tlocal function pasadaMirror()\n\t\tlocal mirror = AutoSense.BuildMirror()\n\t\tlocal sig = firmaDe(mirror.trees)\n\t\tif not sig or sig == plugin:GetSetting(\"autosense_mirror_sig\") then\n\t\t\treturn\n\t\tend\n\t\tif upsertJson(Config.PATHS.place .. \"/mirror.json\", mirror,\n\t\t\t(\"espejo del place (%d nodos)\"):format(mirror.total_nodes)) then\n\t\t\tplugin:SetSetting(\"autosense_mirror_sig\", sig)\n\t\t\tpcall(function()\n\t\t\t\tenv.getUi():Log(\"Espejo del place actualizado -> place/mirror.json\")\n\t\t\tend)\n\t\tend\n\tend\n\n\ttask.spawn(function()\n\t\ttask.wait(15) -- deja arrancar el runtime con calma\n\t\twhile activo do\n\t\t\tif env.getGithub() then\n\t\t\t\tlocal ahora = os.clock()\n\t\t\t\tif Config.AUTO_LINT ~= false and ahora - ultimoLint >= (Config.AUTO_LINT_SECONDS or 600) then\n\t\t\t\t\tultimoLint = ahora\n\t\t\t\t\tpcall(pasadaLint)\n\t\t\t\tend\n\t\t\t\tif Config.AUTO_MIRROR ~= false and ahora - ultimoMirror >= (Config.AUTO_MIRROR_SECONDS or 300) then\n\t\t\t\t\tultimoMirror = ahora\n\t\t\t\t\tpcall(pasadaMirror)\n\t\t\t\tend\n\t\t\tend\n\t\t\ttask.wait(30)\n\t\tend\n\tend)\n\n\treturn {\n\t\tdetener = function()\n\t\t\tactivo = false\n\t\tend,\n\t}\nend\n\nreturn AutoSense\n
+-- AutoSense.lua (v3.0) - sondeo continuo del place: lint automatico de scripts y
+-- espejo del estado actual de Studio publicado en el repo (place/mirror.json).
+-- Studio no expone acceso entrante; la unica via es este plugin publicando el
+-- estado para que el agente lo lea del repo. Solo escribe cuando algo CAMBIA
+-- (firma FNV-1a del contenido), para no inundar el historial de commits.
+--
+-- init(env) arranca el sondeo y devuelve { detener }. Ademas expone
+-- AutoSense.MirrorTree, que reutiliza OpsExtra.mirror_place.
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local Config = require(script.Parent.Config)
+local Lint = require(script.Parent.Lint)
+
+local AutoSense = {}
+
+local function firma(texto)
+	local h = 2166136261
+	for i = 1, #texto do
+		h = bit32.bxor(h, texto:byte(i))
+		h = (h * 16777619) % 4294967296
+	end
+	return string.format("%08x", h)
+end
+
+local function redondear(n)
+	return math.floor(n * 100 + 0.5) / 100
+end
+
+-- Arbol compacto: nombre, clase, posicion/tamano de BasePart, pivot de Model y
+-- lineas de los scripts (sin fuente; la fuente viaja en los snapshots de codigo).
+function AutoSense.MirrorTree(inst, profundidad, presupuesto)
+	if presupuesto.n <= 0 then
+		return nil
+	end
+	presupuesto.n -= 1
+	local nodo = { name = inst.Name, class = inst.ClassName }
+	if inst:IsA("BasePart") then
+		local p, s = inst.Position, inst.Size
+		nodo.pos = { redondear(p.X), redondear(p.Y), redondear(p.Z) }
+		nodo.size = { redondear(s.X), redondear(s.Y), redondear(s.Z) }
+		if not inst.Anchored then
+			nodo.anchored = false
+		end
+	elseif inst:IsA("Model") then
+		local ok, cf = pcall(function()
+			return inst:GetPivot()
+		end)
+		if ok then
+			nodo.pos = { redondear(cf.X), redondear(cf.Y), redondear(cf.Z) }
+		end
+	elseif inst:IsA("LuaSourceContainer") then
+		nodo.lines = 1 + select(2, inst.Source:gsub("\n", "\n"))
+	end
+	if profundidad > 1 then
+		local hijos = inst:GetChildren()
+		if #hijos > 0 then
+			nodo.children = {}
+			for i, hijo in ipairs(hijos) do
+				if i > 40 then
+					table.insert(nodo.children, { name = ("y %d mas"):format(#hijos - 40), class = "..." })
+					break
+				end
+				local sub = AutoSense.MirrorTree(hijo, profundidad - 1, presupuesto)
+				if sub then
+					table.insert(nodo.children, sub)
+				else
+					table.insert(nodo.children, { name = "...", class = "presupuesto agotado" })
+					break
+				end
+			end
+		end
+	end
+	return nodo
+end
+
+local SERVICIOS_ESPEJO = {
+	"Workspace", "ServerScriptService", "ServerStorage", "ReplicatedStorage",
+	"StarterGui", "StarterPlayer", "StarterPack", "Lighting", "Teams", "SoundService",
+}
+
+-- Espejo del place entero (lo que el agente lee para conocer el estado de Studio).
+function AutoSense.BuildMirror(maxDepth, maxNodes)
+	local presupuesto = { n = maxNodes or Config.MIRROR_MAX_NODES or 2500 }
+	local trees, counts = {}, {}
+	local total = 0
+	for _, nombre in ipairs(SERVICIOS_ESPEJO) do
+		local ok, servicio = pcall(function()
+			return game:GetService(nombre)
+		end)
+		if ok and servicio then
+			local antes = presupuesto.n
+			local arbol = AutoSense.MirrorTree(servicio, maxDepth or 3, presupuesto)
+			if arbol then
+				trees[nombre] = arbol
+				local usados = antes - presupuesto.n
+				counts[nombre] = usados
+				total += usados
+			end
+		end
+	end
+	return {
+		tipo = "espejo-place",
+		place = game.Name,
+		place_id = game.PlaceId,
+		capturado_at = DateTime.now():ToIsoDate(),
+		play_mode = RunService:IsRunning(),
+		truncated = presupuesto.n <= 0,
+		counts = counts,
+		total_nodes = total,
+		trees = trees,
+	}
+end
+
+function AutoSense.init(env)
+	if Config.AUTO_LINT == false and Config.AUTO_MIRROR == false then
+		return { detener = function() end }
+	end
+	local plugin = env.plugin
+	local activo = true
+	local ultimoLint, ultimoMirror = 0, 0
+
+	local function upsertJson(path, payload, msg)
+		local gh = env.getGithub()
+		if not gh then
+			return false
+		end
+		local sha
+		pcall(function()
+			local _, s = gh:ReadJson(path)
+			sha = s
+		end)
+		local ok, err = pcall(function()
+			gh:WriteJson(path, payload, msg, sha)
+		end)
+		if not ok then
+			env.reportError("autosense", err)
+			return false
+		end
+		return true
+	end
+
+	local function firmaDe(tabla)
+		local ok, texto = pcall(function()
+			return HttpService:JSONEncode(tabla)
+		end)
+		if not ok then
+			return nil
+		end
+		return firma(texto)
+	end
+
+	local function pasadaLint()
+		local findings = Lint.Place()
+		local sig = firmaDe(findings)
+		if not sig or sig == plugin:GetSetting("autosense_lint_sig") then
+			return
+		end
+		local enviados = findings
+		if #findings > 300 then
+			enviados = {}
+			for i = 1, 300 do
+				enviados[i] = findings[i]
+			end
+		end
+		local ok = upsertJson(Config.PATHS.lint .. "/findings.json", {
+			tipo = "lint",
+			capturado_at = env.nowIso(),
+			play_mode = RunService:IsRunning(),
+			total = #findings,
+			truncated = #findings > 300,
+			findings = enviados,
+		}, ("lint: %d hallazgo(s)"):format(#findings))
+		if ok then
+			plugin:SetSetting("autosense_lint_sig", sig)
+			pcall(function()
+				env.getUi():Log(("Auto-lint: %d hallazgo(s) -> lint/findings.json"):format(#findings))
+			end)
+		end
+	end
+
+	local function pasadaMirror()
+		local mirror = AutoSense.BuildMirror()
+		local sig = firmaDe(mirror.trees)
+		if not sig or sig == plugin:GetSetting("autosense_mirror_sig") then
+			return
+		end
+		if upsertJson(Config.PATHS.place .. "/mirror.json", mirror,
+			("espejo del place (%d nodos)"):format(mirror.total_nodes)) then
+			plugin:SetSetting("autosense_mirror_sig", sig)
+			pcall(function()
+				env.getUi():Log("Espejo del place actualizado -> place/mirror.json")
+			end)
+		end
+	end
+
+	task.spawn(function()
+		task.wait(15) -- deja arrancar el runtime con calma
+		while activo do
+			if env.getGithub() then
+				local ahora = os.clock()
+				if Config.AUTO_LINT ~= false and ahora - ultimoLint >= (Config.AUTO_LINT_SECONDS or 600) then
+					ultimoLint = ahora
+					pcall(pasadaLint)
+				end
+				if Config.AUTO_MIRROR ~= false and ahora - ultimoMirror >= (Config.AUTO_MIRROR_SECONDS or 300) then
+					ultimoMirror = ahora
+					pcall(pasadaMirror)
+				end
+			end
+			task.wait(30)
+		end
+	end)
+
+	return {
+		detener = function()
+			activo = false
+		end,
+	}
+end
+
+return AutoSense

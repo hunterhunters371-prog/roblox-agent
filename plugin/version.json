@@ -1,2 +1,22 @@
 {
-\t\"version\": \"3.0.0\",\n\t\"updated\": \"2026-08-25\",\n\t\"loader_min\": \"2.1\",\n\t\"notes\": \"Lint automatico de todos los scripts del place (Lint.lua): bloques/pares sin cerrar, globals no declarados y APIs deprecadas, con arreglo sugerido. Resultados en lint/findings.json (Actions los convierte en issues) y op lint_scripts para ejecucion manual. AutoSense: espejo del estado actual del place en place/mirror.json cada 5 min (solo cuando algo cambia) + op mirror_place. Requiere loader 2.1.\",\n\t\"files\": [\n\t\t\"Config.lua\",\n\t\t\"Base64.lua\",\n\t\t\"GitHub.lua\",\n\t\t\"Validator.lua\",\n\t\t\"PathResolver.lua\",\n\t\t\"Lint.lua\",\n\t\t\"Ops.lua\",\n\t\t\"OpsExtra.lua\",\n\t\t\"AutoSense.lua\",\n\t\t\"Executor.lua\",\n\t\t\"UI.lua\",\n\t\t\"Inspect.lua\",\n\t\t\"Chat.lua\",\n\t\t\"Main.lua\"\n\t]\n}\n
+	"version": "3.0.1",
+	"updated": "2026-08-25",
+	"loader_min": "2.1",
+	"notes": "Igual que 3.0.0 (Lint estatico de todos los scripts + AutoSense: lint/findings.json cada 10 min y espejo place/mirror.json cada 5 min, solo cuando algo cambia; ops lint_scripts y mirror_place). Corrige Lint.lua, AutoSense.lua y Config.lua, que en 3.0.0 se subieron con las comillas escapadas: el require de prueba del loader fallaba y hacia rollback silencioso (sintoma: 'no se actualiza'). Requiere loader 2.1.",
+	"files": [
+		"Config.lua",
+		"Base64.lua",
+		"GitHub.lua",
+		"Validator.lua",
+		"PathResolver.lua",
+		"Lint.lua",
+		"Ops.lua",
+		"OpsExtra.lua",
+		"AutoSense.lua",
+		"Executor.lua",
+		"UI.lua",
+		"Inspect.lua",
+		"Chat.lua",
+		"Main.lua"
+	]
+}
