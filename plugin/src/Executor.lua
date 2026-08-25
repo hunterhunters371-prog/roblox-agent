@@ -1,11 +1,19 @@
 -- Ejecutor de comandos: aplica operaciones en orden, reporta progreso
 -- y gestiona waypoints de Undo/Redo (ChangeHistoryService).
 -- v1.2: pasa el id del comando a los handlers (para la etiqueta _RBX_Bridge).
+-- v2.0: fusiona OpsExtra (ops nuevas, p. ej. insert_asset) en el registro de Ops.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
 local Ops = require(script.Parent.Ops)
+local OpsExtra = require(script.Parent.OpsExtra)
 local Resolver = require(script.Parent.PathResolver)
+
+-- Ops.lua llegó al límite de ~16 KB por archivo de este repo; las ops nuevas
+-- viven en OpsExtra y aquí se fusionan en el mismo registro.
+for opName, handler in pairs(OpsExtra) do
+	Ops[opName] = handler
+end
 
 local Executor = {}
 
