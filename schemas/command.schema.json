@@ -257,6 +257,20 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "id", "asset_id"],
+          "properties": {
+            "op": { "const": "insert_asset" },
+            "id": { "$ref": "#/$defs/opId" },
+            "asset_id": { "type": "integer", "minimum": 1, "description": "ID del asset de la Toolbox/Creator Store. Debe ser gratuito/público o propiedad de la cuenta." },
+            "path": { "$ref": "#/$defs/path" },
+            "position": { "$ref": "#/$defs/vector3" },
+            "name": { "type": "string", "minLength": 1 },
+            "allow_scripts": { "type": "boolean", "default": false, "description": "Por defecto se ELIMINAN todos los scripts del asset insertado (seguridad). true los conserva y fuerza aprobación humana." }
+          }
         }
       ]
     }

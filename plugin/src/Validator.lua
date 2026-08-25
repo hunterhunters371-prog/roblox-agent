@@ -1,5 +1,6 @@
 -- Validación del lado del plugin: envelope + listas blancas.
 -- Espejo de schemas/allowed_roots.json y schemas/allowed_classes.json (v0.1).
+-- v2.0: insert_asset (Toolbox vía LoadAsset); allow_scripts=true fuerza aprobación.
 
 local Config = require(script.Parent.Config)
 
@@ -57,6 +58,7 @@ local REQUIRED = {
 	group_instances = { "paths", "model_name", "parent" },
 	build_structure = { "structure", "params" },
 	build_from_spec = { "parts" },
+	insert_asset = { "asset_id" }, -- v2.0: Toolbox/Creator Store (path opcional, default Workspace)
 }
 
 local PATH_FIELDS = { "path", "new_parent", "parent" }
@@ -130,6 +132,11 @@ function Validator.ValidateCommand(cmd)
 				end
 			end
 		end
+		if op.op == "insert_asset" then
+			if type(op.asset_id) ~= "number" or op.asset_id <= 0 then
+				return fail("VALIDATION_FAILED", ("insert_asset (%s): asset_id debe ser número positivo"):format(op.id))
+			end
+		end
 		if (op.op == "ensure_instance" or op.op == "create_instance") and not CLASSES[op.class] then
 			return fail("CLASS_NOT_ALLOWED", tostring(op.class))
 		end
@@ -139,6 +146,8 @@ function Validator.ValidateCommand(cmd)
 end
 
 -- delete_instance SIEMPRE exige aprobación humana (protocolo v0.1, sección 8).
+-- insert_asset con allow_scripts=true también (v2.0: scripts de terceros solo con
+-- aprobación; por defecto el plugin los elimina al insertar).
 function Validator.NeedsApproval(cmd)
 	local options = cmd.options or {}
 	if options.require_approval ~= false then
@@ -146,6 +155,9 @@ function Validator.NeedsApproval(cmd)
 	end
 	for _, op in ipairs(cmd.operations) do
 		if op.op == "delete_instance" then
+			return true
+		end
+		if op.op == "insert_asset" and op.allow_scripts == true then
 			return true
 		end
 	end
