@@ -1,0 +1,1 @@
+# Nota de sesion — 2026-08-25\n\n## Plugin v3.0.0 (commits 682979f9 + 737ff92b + 51e50e65)\n\nPedido del usuario: \
