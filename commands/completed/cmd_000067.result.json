@@ -1,0 +1,1 @@
+{"finished_at":"2026-08-26T04:18:39Z","waypoint":"cmd_000067","started_at":"2026-08-26T04:18:33Z","errors":[],"id":"cmd_000067","status":"completed","progress":{"total":2,"done":2},"results":[{"status":"ok","id":"op_1","data":[{"class":"Model","name":"Rig","path":"Workspace.Rig"}],"detail":"1 coincidencias"},{"status":"ok","id":"op_2","data":[],"detail":"0 coincidencias"}]}
