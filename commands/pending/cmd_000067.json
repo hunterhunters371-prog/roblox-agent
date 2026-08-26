@@ -1,0 +1,13 @@
+{
+	"version": "0.1",
+	"id": "cmd_000067",
+	"title": "Localizar modelos 'Rig' en el lugar (previo a RigChaser)",
+	"created_by": "notion-agent",
+	"created_at": "2026-08-26T04:15:00Z",
+	"request": "El usuario quiere que el modelo Rig (dummy/personaje NPC) persiga al jugador como los ladrones de Delivery: 60 Seconds. Antes de adjuntar el script, localizo todos los modelos cuyo nombre contiene 'Rig' en Workspace y ServerStorage para saber exactamente donde viven y cuantos son. Comando de solo lectura.",
+	"options": { "atomic": false, "dry_run": false, "require_approval": false, "create_waypoint": true },
+	"operations": [
+		{ "id": "op_1", "op": "find_instances", "path": "Workspace", "class": "Model", "name_pattern": "Rig" },
+		{ "id": "op_2", "op": "find_instances", "path": "ServerStorage", "class": "Model", "name_pattern": "Rig" }
+	]
+}
