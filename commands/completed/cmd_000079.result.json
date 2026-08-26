@@ -1,0 +1,1 @@
+{"finished_at":"2026-08-26T20:28:11Z","waypoint":"cmd_000079","started_at":"2026-08-26T20:28:05Z","errors":[],"id":"cmd_000079","status":"completed","progress":{"total":2,"done":2},"results":[{"status":"ok","data":{"source_lines":479},"action":"updated","id":"op_1"},{"status":"ok","data":{"source_lines":479},"action":"updated","id":"op_2"}]}
