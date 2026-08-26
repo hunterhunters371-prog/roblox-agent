@@ -1,0 +1,17 @@
+{
+	"version": "0.1",
+	"id": "cmd_000084",
+	"title": "Reconocimiento real: fuentes, vehiculos y Workspace",
+	"created_by": "notion-agent",
+	"created_at": "2026-08-26T21:10:00Z",
+	"request": "Solo lectura, ahora sin dry_run. Necesito los datos reales para corregir cuatro fallos sin romper codigo existente: (1) el destino de la entrega cambia cuando el ladron roba la caja, (2) sobra una linea recta (Beam) del HUD, (3) los vehiculos comprables no se mueven ni se pueden conducir, (4) los coches no embisten fisicamente. Quiero ver si inspect_instance devuelve el codigo fuente actual de DeliveryService y del HUD, la estructura interna de los modelos de vehiculo y el contenido del Workspace, y localizar los asientos existentes.",
+	"options": { "atomic": false, "dry_run": false, "require_approval": false, "create_waypoint": false },
+	"operations": [
+		{ "id": "op_1", "op": "inspect_instance", "path": "ServerScriptService.DeliveryServer.DeliveryService" },
+		{ "id": "op_2", "op": "inspect_instance", "path": "StarterPlayer.StarterPlayerScripts.DeliveryClient.HUD" },
+		{ "id": "op_3", "op": "mirror_place", "path": "ServerStorage.DeliveryModels", "max_depth": 4, "max_instances": 300 },
+		{ "id": "op_4", "op": "mirror_place", "path": "Workspace", "max_depth": 2, "max_instances": 300 },
+		{ "id": "op_5", "op": "find_instances", "path": "Workspace", "class": "VehicleSeat" },
+		{ "id": "op_6", "op": "find_instances", "path": "Workspace", "class": "Seat" }
+	]
+}
