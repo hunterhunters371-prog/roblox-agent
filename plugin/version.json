@@ -1,8 +1,8 @@
 {
-	"version": "3.3.2",
+	"version": "3.4.0",
 	"updated": "2026-08-27",
 	"loader_min": "2.1",
-	"notes": "100% automático: los comandos en processing/ también se reanudan solos al sincronizar (una vez por sesión por comando, sin botón Continuar). Incluye 3.3.1 (fix de carga por carrera de caché del CDN, filtro estricto cmd_NNNNNN, sync inicial automático) y 3.3.0 (sin aprobación humana, acepta .cmd además de .json, ops scan_workspace/scan_repo).",
+	"notes": "Op nueva run_code (OpsRun.lua): ejecuta Luau en el contexto del plugin — equivalente a la barra de comandos de Studio — a petición expresa del dueño para evaluación profunda del place. Captura print/warn, errores y valores devueltos en data del result.json. Incluye 3.3.2 (auto-ejecución total, incluida reanudación de processing/), 3.3.1 (fix de carga por caché del CDN) y 3.3.0 (sin aprobación, .cmd, scan_workspace/scan_repo).",
 	"files": [
 		"Config.lua",
 		"Base64.lua",
@@ -13,6 +13,7 @@
 		"Ops.lua",
 		"OpsExtra.lua",
 		"OpsScan.lua",
+		"OpsRun.lua",
 		"AutoSense.lua",
 		"Executor.lua",
 		"UI.lua",

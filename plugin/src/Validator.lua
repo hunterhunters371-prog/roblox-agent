@@ -7,6 +7,7 @@
 -- v3.2: export_model (solo lectura) - volcado 3D completo de un modelo.
 -- v3.3: scan_workspace y scan_repo (solo lectura). Aprobacion humana ELIMINADA:
 -- todo comando que pasa la validacion se considera listo para auto-ejecutar.
+-- v3.4.0: run_code (ejecuta Luau en Studio; a petición expresa del dueño).
 
 local Config = require(script.Parent.Config)
 
@@ -83,6 +84,7 @@ local REQUIRED = {
 	export_model = { "path" }, -- v3.2: volcado 3D (solo lectura)
 	scan_workspace = {}, -- v3.3: todo opcional (path, max_depth, max_nodes, include_source, inline)
 	scan_repo = {}, -- v3.3: todo opcional (repo_path, read_files, max_files, inline)
+	run_code = { "source" }, -- v3.4.0: código Luau a ejecutar en el contexto del plugin
 }
 
 -- Campos que contienen paths y deben validarse contra las raices permitidas.
@@ -193,8 +195,8 @@ function Validator.ValidateCommand(cmd)
 end
 
 -- v3.3: aprobacion humana ELIMINADA a peticion del dueno del repo.
--- Todo comando que supera ValidateCommand se ejecuta al sincronizar.
--- (Antes: delete_instance e insert_asset con allow_scripts la exigian siempre.)
+-- Todo comando valido pasa directo a ejecucion (Main lo auto-ejecuta al
+-- sincronizar). Se conserva la funcion para no romcar a llamadores antiguos.
 function Validator.NeedsApproval(_cmd)
 	return false
 end

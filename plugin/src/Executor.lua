@@ -5,6 +5,7 @@
 -- v3.0: lint_scripts y mirror_place cuentan como solo lectura (sin waypoint).
 -- v3.3: fusiona OpsScan (scan_workspace / scan_repo, solo lectura).
 -- v3.3.1: el require de OpsScan es tolerante a descargas a medias del CDN.
+-- v3.4.0: fusiona OpsRun (run_code: ejecuta Luau en el contexto del plugin).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -13,8 +14,8 @@ local OpsExtra = require(script.Parent.OpsExtra)
 local Resolver = require(script.Parent.PathResolver)
 
 -- v3.3.1: require tolerante de OpsScan — si el CDN descargó una versión a medias
--- (manifiesto viejo sin OpsScan.lua), el bridge sigue arrancando sin las ops de
--- escaneo en lugar de tumbar la carga completa del runtime.
+-- (manifiesto viejo sin OpsScan.lua en la lista), el bridge sigue arrancando sin
+-- las ops de escaneo en lugar de tumbar la carga completa del runtime.
 local OpsScan = nil
 do
 	local okOpsScan, opsScanMod = pcall(function()
@@ -37,6 +38,22 @@ if OpsScan then
 		if opName ~= "set_env" then
 			Ops[opName] = handler
 		end
+	end
+end
+
+-- v3.4.0: OpsRun — mismo require tolerante por si el CDN sirve una versión a medias
+local OpsRun = nil
+do
+	local okRun, runMod = pcall(function()
+		return require(script.Parent.OpsRun)
+	end)
+	if okRun then
+		OpsRun = runMod
+	end
+end
+if OpsRun then
+	for opName, handler in pairs(OpsRun) do
+		Ops[opName] = handler
 	end
 end
 
