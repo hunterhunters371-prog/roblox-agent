@@ -5,6 +5,8 @@
 -- v3.1: set_reference y weld_parts + clases de vehiculo (constraints, VehicleSeat,
 -- movers y Animation) para poder ensamblar vehiculos como modelos de verdad.
 -- v3.2: export_model (solo lectura) - volcado 3D completo de un modelo.
+-- v3.3: scan_workspace y scan_repo (solo lectura). Aprobacion humana ELIMINADA:
+-- todo comando que pasa la validacion se considera listo para auto-ejecutar.
 
 local Config = require(script.Parent.Config)
 
@@ -79,6 +81,8 @@ local REQUIRED = {
 	set_reference = { "path", "property" }, -- v3.1: target_path opcional (null = limpiar)
 	weld_parts = { "path_a", "path_b" }, -- v3.1
 	export_model = { "path" }, -- v3.2: volcado 3D (solo lectura)
+	scan_workspace = {}, -- v3.3: todo opcional (path, max_depth, max_nodes, include_source, inline)
+	scan_repo = {}, -- v3.3: todo opcional (repo_path, read_files, max_files, inline)
 }
 
 -- Campos que contienen paths y deben validarse contra las raices permitidas.
@@ -163,7 +167,7 @@ function Validator.ValidateCommand(cmd)
 				return fail("VALIDATION_FAILED", ("set_reference (%s): property debe ser string"):format(op.id))
 			end
 		end
-		if op.op == "lint_scripts" or op.op == "mirror_place" or op.op == "export_model" then
+		if op.op == "lint_scripts" or op.op == "mirror_place" or op.op == "export_model" or op.op == "scan_workspace" or op.op == "scan_repo" then
 			if op.max_depth ~= nil and type(op.max_depth) ~= "number" then
 				return fail("VALIDATION_FAILED", ("%s (%s): max_depth debe ser numero"):format(op.op, op.id))
 			end
@@ -176,6 +180,9 @@ function Validator.ValidateCommand(cmd)
 			if op.max_nodes ~= nil and type(op.max_nodes) ~= "number" then
 				return fail("VALIDATION_FAILED", ("%s (%s): max_nodes debe ser numero"):format(op.op, op.id))
 			end
+			if op.max_files ~= nil and type(op.max_files) ~= "number" then
+				return fail("VALIDATION_FAILED", ("%s (%s): max_files debe ser numero"):format(op.op, op.id))
+			end
 		end
 		if (op.op == "ensure_instance" or op.op == "create_instance") and not CLASSES[op.class] then
 			return fail("CLASS_NOT_ALLOWED", tostring(op.class))
@@ -185,22 +192,10 @@ function Validator.ValidateCommand(cmd)
 	return true
 end
 
--- delete_instance SIEMPRE exige aprobacion humana (protocolo v0.1, seccion 8).
--- insert_asset con allow_scripts=true tambien (v2.0: scripts de terceros solo con
--- aprobacion; por defecto el plugin los elimina al insertar).
-function Validator.NeedsApproval(cmd)
-	local options = cmd.options or {}
-	if options.require_approval ~= false then
-		return true
-	end
-	for _, op in ipairs(cmd.operations) do
-		if op.op == "delete_instance" then
-			return true
-		end
-		if op.op == "insert_asset" and op.allow_scripts == true then
-			return true
-		end
-	end
+-- v3.3: aprobacion humana ELIMINADA a peticion del dueno del repo.
+-- Todo comando que supera ValidateCommand se ejecuta al sincronizar.
+-- (Antes: delete_instance e insert_asset con allow_scripts la exigian siempre.)
+function Validator.NeedsApproval(_cmd)
 	return false
 end
 

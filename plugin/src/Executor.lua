@@ -3,17 +3,26 @@
 -- v1.2: pasa el id del comando a los handlers (para la etiqueta _RBX_Bridge).
 -- v2.0: fusiona OpsExtra (ops nuevas, p. ej. insert_asset) en el registro de Ops.
 -- v3.0: lint_scripts y mirror_place cuentan como solo lectura (sin waypoint).
+-- v3.3: fusiona OpsScan (scan_workspace / scan_repo, solo lectura).
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
 local Ops = require(script.Parent.Ops)
 local OpsExtra = require(script.Parent.OpsExtra)
+local OpsScan = require(script.Parent.OpsScan)
 local Resolver = require(script.Parent.PathResolver)
 
 -- Ops.lua llegó al límite de ~16 KB por archivo de este repo; las ops nuevas
--- viven en OpsExtra y aquí se fusionan en el mismo registro.
+-- viven en OpsExtra/OpsScan y aquí se fusionan en el mismo registro.
 for opName, handler in pairs(OpsExtra) do
-	Ops[opName] = handler
+	if opName ~= "set_env" then
+		Ops[opName] = handler
+	end
+end
+for opName, handler in pairs(OpsScan) do
+	if opName ~= "set_env" then
+		Ops[opName] = handler
+	end
 end
 
 local Executor = {}
@@ -24,6 +33,8 @@ local function isReadOnly(opName)
 		or opName == "find_instances"
 		or opName == "lint_scripts" -- v3.0
 		or opName == "mirror_place" -- v3.0
+		or opName == "scan_workspace" -- v3.3
+		or opName == "scan_repo" -- v3.3
 end
 
 -- Dry-run: valida resolución de paths sin tocar el DataModel.

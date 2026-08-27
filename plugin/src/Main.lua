@@ -4,6 +4,9 @@
 -- stop() para esa actualización en caliente. (Historia v1.1–v1.8: ver README y git.)
 -- v3.0: AutoSense — lint automático de scripts (lint/findings.json) y espejo del
 -- estado del place (place/mirror.json), publicados solo cuando algo cambia.
+-- v3.3: SIN aprobación humana — los comandos válidos de pending/ y approved/ se
+-- AUTO-EJECUTAN al sincronizar (Config.AUTO_EXECUTE). Se aceptan archivos .cmd
+-- además de .json (mismo envelope JSON). Nuevas ops de escaneo (OpsScan).
 --
 -- ctx = { plugin, widget, version, loader }
 
@@ -18,6 +21,7 @@ local UI = require(script.Parent.UI)
 local Inspect = require(script.Parent.Inspect)
 local Chat = require(script.Parent.Chat)
 local AutoSense = require(script.Parent.AutoSense)
+local OpsScan = require(script.Parent.OpsScan)
 
 local Main = {}
 
@@ -30,6 +34,7 @@ function Main.start(ctx)
 	local doSync
 	local ultimoConteoComandos = nil
 	local activo = true
+	local autoEjecutando = false -- v3.3: guarda contra re-entrada de la auto-ejecución
 	local conexiones = {}
 
 	local function nowIso()
@@ -88,14 +93,28 @@ function Main.start(ctx)
 	local inspectApi = Inspect.init(env)
 	local chatApi = Chat.init(env)
 	local autoSenseApi = AutoSense.init(env) -- v3.0: lint + espejo automáticos
+	OpsScan.set_env(env) -- v3.3: las ops de escaneo publican snapshots desde aquí
 
 	-- ---------- acceso a comandos ----------
+
+	-- v3.3: se aceptan .json y .cmd (mismo envelope JSON dentro).
+	local function esArchivoComando(nombre)
+		if not nombre:match("^cmd_%d%d%d%d%d%d%.") then
+			return false
+		end
+		for _, ext in ipairs(Config.COMMAND_EXTENSIONS or { ".json" }) do
+			if nombre:sub(-#ext) == ext then
+				return true
+			end
+		end
+		return false
+	end
 
 	local function listCommands(folder)
 		local files = github:ListFiles(folder)
 		local commands = {}
 		for _, file in ipairs(files) do
-			if file.name:match("^cmd_%d%d%d%d%d%d%.json$") then
+			if esArchivoComando(file.name) then
 				table.insert(commands, file)
 			end
 		end
@@ -135,7 +154,8 @@ function Main.start(ctx)
 	local function reject(file, code, message)
 		ui:Log(("%s rechazado: %s — %s"):format(file.name, code, message))
 		github:MoveFile(file.path, Config.PATHS.rejected .. "/" .. file.name, "rechazar " .. file.name .. ": " .. code)
-		github:WriteJson(Config.PATHS.rejected .. "/" .. file.name:gsub("%.json$", "") .. ".reason.json", {
+		local base = file.name:gsub("%.json$", ""):gsub("%.cmd$", "")
+		github:WriteJson(Config.PATHS.rejected .. "/" .. base .. ".reason.json", {
 			code = code,
 			message = message,
 			rejected_at = nowIso(),
@@ -170,21 +190,6 @@ function Main.start(ctx)
 			ui:Log(("%s terminó con %d error(es)."):format(cmd.id, #errors))
 		else
 			ui:Log("✓ " .. cmd.id .. " completado.")
-		end
-	end
-
-	local function doApprove(file, cmd)
-		if not guardGithub() then
-			return
-		end
-		local ok, err = pcall(function()
-			github:MoveFile(file.path, Config.PATHS.approved .. "/" .. file.name, "aprobar " .. cmd.id)
-		end)
-		if ok then
-			ui:Log(cmd.id .. " aprobado.")
-			doSync()
-		else
-			reportError("aprobar " .. cmd.id, err)
 		end
 	end
 
@@ -264,6 +269,7 @@ function Main.start(ctx)
 			ui:SetStatus("sincronizando…", "busy")
 		end
 		local items = {}
+		local colaAuto = {} -- v3.3: comandos válidos listos para auto-ejecutar
 
 		local ok, err = pcall(function()
 			for _, file in ipairs(listCommands(Config.PATHS.pending)) do
@@ -274,17 +280,8 @@ function Main.start(ctx)
 					local valid, code, message = Validator.ValidateCommand(cmd)
 					if not valid then
 						reject(file, code, message)
-					elseif Validator.NeedsApproval(cmd) then
-						table.insert(items, {
-							id = cmd.id,
-							title = cmd.title,
-							state = "pending",
-							actionLabel = "Aprobar",
-							onAction = function()
-								doApprove(file, cmd)
-							end,
-						})
 					else
+						-- v3.3: sin aprobación — todo comando válido va a la cola de ejecución
 						table.insert(items, {
 							id = cmd.id,
 							title = cmd.title,
@@ -294,6 +291,7 @@ function Main.start(ctx)
 								doExecute(file, cmd)
 							end,
 						})
+						table.insert(colaAuto, { file = file, cmd = cmd })
 					end
 				end
 			end
@@ -310,6 +308,7 @@ function Main.start(ctx)
 							doExecute(file, cmd)
 						end,
 					})
+					table.insert(colaAuto, { file = file, cmd = cmd })
 				end
 			end
 
@@ -343,6 +342,20 @@ function Main.start(ctx)
 			setStatusReady()
 		end
 		ui:SetCommands(items)
+
+		-- v3.3: AUTO-EJECUCIÓN sin aprobación humana. Se ejecuta el primer comando
+		-- de la cola; al terminar, doExecute sincroniza y esta pasada recoge el
+		-- siguiente. autoEjecutando evita re-entrada mientras hay uno en marcha.
+		if Config.AUTO_EXECUTE and not autoEjecutando and #colaAuto > 0 then
+			local siguiente = colaAuto[1]
+			ui:Log(("▶ Auto-ejecutando %s — %s"):format(siguiente.cmd.id, tostring(siguiente.cmd.title)))
+			task.spawn(function()
+				autoEjecutando = true
+				pcall(doExecute, siguiente.file, siguiente.cmd)
+				autoEjecutando = false
+				doSync(true) -- recoge el siguiente comando en cola, si lo hay
+			end)
+		end
 	end
 
 	-- ---------- arranque ----------
@@ -406,6 +419,7 @@ function Main.start(ctx)
 		tostring(ctx.version),
 		tostring(ctx.loader)
 	))
+	ui:Log("v3.3: aprobación eliminada — los comandos válidos se AUTO-EJECUTAN al sincronizar. Formatos: .json y .cmd.")
 	if Config.AUTO_LINT ~= false or Config.AUTO_MIRROR ~= false then
 		ui:Log(("AutoSense activo: lint cada %ds y espejo cada %ds (solo escribe cuando algo cambia)."):format(
 			Config.AUTO_LINT_SECONDS or 600,

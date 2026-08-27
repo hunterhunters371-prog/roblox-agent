@@ -1,8 +1,8 @@
 {
-	"version": "3.2.0",
-	"updated": "2026-08-25",
+	"version": "3.3.0",
+	"updated": "2026-08-27",
 	"loader_min": "2.1",
-	"notes": "Op nueva export_model: volcado 3D completo de un modelo (posicion, rotacion en grados, tamano, color RGB, material, transparencia, forma, MeshId, banderas anchored/canCollide/massless, atributos y las referencias Part0/Part1/Attachment0/Attachment1 de cada constraint y soldadura). Es solo lectura y los datos viajan en data del result.json. mirror_place solo daba nombre/clase/posicion/tamano, insuficiente para ver como esta ensamblado un vehiculo. Incluye set_reference y weld_parts de 3.1, y el lint automatico y el espejo del place de 3.0.1.",
+	"notes": "Sin aprobación humana: los comandos válidos de pending/ y approved/ se AUTO-EJECUTAN al sincronizar (Config.AUTO_EXECUTE). Se aceptan archivos .cmd además de .json (mismo envelope JSON). Ops nuevas de solo lectura: scan_workspace (árbol del place abierto en Studio, con fuente de scripts opcional) y scan_repo (árbol del repo vía git trees + contenido opcional de archivos). Ambas publican en snapshots/ y devuelven resumen en data del result.json. Las ops viven en el módulo nuevo OpsScan.lua.",
 	"files": [
 		"Config.lua",
 		"Base64.lua",
@@ -12,6 +12,7 @@
 		"Lint.lua",
 		"Ops.lua",
 		"OpsExtra.lua",
+		"OpsScan.lua",
 		"AutoSense.lua",
 		"Executor.lua",
 		"UI.lua",
