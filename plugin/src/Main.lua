@@ -11,6 +11,8 @@
 -- Main nuevo + manifiesto viejo sin OpsScan.lua y tumbar la carga completa),
 -- filtro de comandos estricto (los .state.json huérfanos ya no se leen como
 -- comandos) y sync inicial automático al cargar el token.
+-- v3.3.2: los comandos en processing/ también se REANUDAN solos al sincronizar
+-- (una vez por sesión por comando, para no entrar en bucle si uno falla).
 --
 -- ctx = { plugin, widget, version, loader }
 
@@ -51,6 +53,7 @@ function Main.start(ctx)
 	local ultimoConteoComandos = nil
 	local activo = true
 	local autoEjecutando = false -- v3.3: guarda contra re-entrada de la auto-ejecución
+	local autoReanudados = {} -- v3.3.2: ids de processing/ ya reanudados automáticamente en esta sesión
 	local conexiones = {}
 
 	local function nowIso()
@@ -347,6 +350,11 @@ function Main.start(ctx)
 							doExecute(file, cmd, state)
 						end,
 					})
+					-- v3.3.2: reanudar solo al sincronizar (una vez por sesión por comando)
+					if not autoReanudados[cmd.id] then
+						autoReanudados[cmd.id] = true
+						table.insert(colaAuto, { file = file, cmd = cmd, resumeState = state })
+					end
 				end
 			end
 		end)
@@ -373,7 +381,7 @@ function Main.start(ctx)
 			ui:Log(("▶ Auto-ejecutando %s — %s"):format(siguiente.cmd.id, tostring(siguiente.cmd.title)))
 			task.spawn(function()
 				autoEjecutando = true
-				pcall(doExecute, siguiente.file, siguiente.cmd)
+				pcall(doExecute, siguiente.file, siguiente.cmd, siguiente.resumeState)
 				autoEjecutando = false
 				doSync(true) -- recoge el siguiente comando en cola, si lo hay
 			end)
@@ -442,7 +450,7 @@ function Main.start(ctx)
 		tostring(ctx.version),
 		tostring(ctx.loader)
 	))
-	ui:Log("v3.3.1: aprobación eliminada — los comandos válidos se AUTO-EJECUTAN al sincronizar (también al arrancar). Formatos: .json y .cmd.")
+	ui:Log("v3.3.2: 100% automático — pending/, approved/ y processing/ se ejecutan solos al sincronizar. Formatos: .json y .cmd.")
 	if Config.AUTO_LINT ~= false or Config.AUTO_MIRROR ~= false then
 		ui:Log(("AutoSense activo: lint cada %ds y espejo cada %ds (solo escribe cuando algo cambia)."):format(
 			Config.AUTO_LINT_SECONDS or 600,
