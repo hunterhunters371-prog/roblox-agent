@@ -5,8 +5,12 @@
 -- v3.0: AutoSense — lint automático de scripts (lint/findings.json) y espejo del
 -- estado del place (place/mirror.json), publicados solo cuando algo cambia.
 -- v3.3: SIN aprobación humana — los comandos válidos de pending/ y approved/ se
--- AUTO-EJECUTAN al sincronizar (Config.AUTO_EXECUTE). Se aceptan archivos .cmd
--- además de .json (mismo envelope JSON). Nuevas ops de escaneo (OpsScan).
+-- AUTO-EJECUTAN al sincronizar. Se aceptan archivos .cmd además de .json (mismo
+-- envelope JSON). Nuevas ops de escaneo (OpsScan): scan_workspace y scan_repo.
+-- v3.3.1: require tolerante de OpsScan (la carrera de caché del CDN podía servir
+-- Main nuevo + manifiesto viejo sin OpsScan.lua y tumbar la carga completa),
+-- filtro de comandos estricto (los .state.json huérfanos ya no se leen como
+-- comandos) y sync inicial automático al cargar el token.
 --
 -- ctx = { plugin, widget, version, loader }
 
@@ -21,7 +25,19 @@ local UI = require(script.Parent.UI)
 local Inspect = require(script.Parent.Inspect)
 local Chat = require(script.Parent.Chat)
 local AutoSense = require(script.Parent.AutoSense)
-local OpsScan = require(script.Parent.OpsScan)
+
+-- v3.3.1: require tolerante — si el CDN sirvió una versión a medias (manifiesto
+-- viejo sin OpsScan.lua en la lista), el runtime arranca igual y solo faltarán
+-- las ops de escaneo, en vez de fallar la carga completa del Main.
+local OpsScan = nil
+do
+	local okOpsScan, opsScanMod = pcall(function()
+		return require(script.Parent.OpsScan)
+	end)
+	if okOpsScan then
+		OpsScan = opsScanMod
+	end
+end
 
 local Main = {}
 
@@ -93,17 +109,22 @@ function Main.start(ctx)
 	local inspectApi = Inspect.init(env)
 	local chatApi = Chat.init(env)
 	local autoSenseApi = AutoSense.init(env) -- v3.0: lint + espejo automáticos
-	OpsScan.set_env(env) -- v3.3: las ops de escaneo publican snapshots desde aquí
+	if OpsScan then
+		OpsScan.set_env(env) -- v3.3: las ops de escaneo publican snapshots desde aquí
+	end
 
 	-- ---------- acceso a comandos ----------
 
-	-- v3.3: se aceptan .json y .cmd (mismo envelope JSON dentro).
+	-- v3.3.1: nombre EXACTO cmd_NNNNNN + extensión permitida (.json/.cmd).
+	-- Así los auxiliares (cmd_000001.state.json, .result.json, .reason.json)
+	-- jamás se interpretan como comandos.
 	local function esArchivoComando(nombre)
-		if not nombre:match("^cmd_%d%d%d%d%d%d%.") then
+		local base, ext = nombre:match("^(cmd_%d%d%d%d%d%d)(%.%a+)$")
+		if not base then
 			return false
 		end
-		for _, ext in ipairs(Config.COMMAND_EXTENSIONS or { ".json" }) do
-			if nombre:sub(-#ext) == ext then
+		for _, permitida in ipairs(Config.COMMAND_EXTENSIONS or { ".json" }) do
+			if ext == permitida then
 				return true
 			end
 		end
@@ -346,7 +367,8 @@ function Main.start(ctx)
 		-- v3.3: AUTO-EJECUCIÓN sin aprobación humana. Se ejecuta el primer comando
 		-- de la cola; al terminar, doExecute sincroniza y esta pasada recoge el
 		-- siguiente. autoEjecutando evita re-entrada mientras hay uno en marcha.
-		if Config.AUTO_EXECUTE and not autoEjecutando and #colaAuto > 0 then
+		-- ("~= false": si el CDN sirvió un Config viejo sin la clave, se auto-ejecuta igual)
+		if Config.AUTO_EXECUTE ~= false and not autoEjecutando and #colaAuto > 0 then
 			local siguiente = colaAuto[1]
 			ui:Log(("▶ Auto-ejecutando %s — %s"):format(siguiente.cmd.id, tostring(siguiente.cmd.title)))
 			task.spawn(function()
@@ -404,22 +426,23 @@ function Main.start(ctx)
 		end
 	end)
 
+	ui:SetCommands({}) -- lista vacía ANTES del sync inicial, para no borrar lo que llene
 	local savedToken = plugin:GetSetting("github_token")
 	if type(savedToken) == "string" and #savedToken > 0 then
 		github = GitHub.new(savedToken)
 		ui:ShowTokenRow(false)
-		ui:Log("Token cargado. Pulsa Sync para buscar comandos.")
+		ui:Log("Token cargado. Sincronizando…")
+		doSync(true) -- v3.3.1: sync inicial inmediato — la cola pendiente arranca sola
 	else
 		ui:ShowTokenRow(true)
 		ui:Log("Bienvenido. Pega tu token fine-grained de GitHub para empezar.")
 	end
-	ui:SetCommands({})
 	setStatusReady()
 	ui:Log(("Bridge runtime v%s (loader v%s) — ⟳ Actualizar trae versiones nuevas sin reinstalar."):format(
 		tostring(ctx.version),
 		tostring(ctx.loader)
 	))
-	ui:Log("v3.3: aprobación eliminada — los comandos válidos se AUTO-EJECUTAN al sincronizar. Formatos: .json y .cmd.")
+	ui:Log("v3.3.1: aprobación eliminada — los comandos válidos se AUTO-EJECUTAN al sincronizar (también al arrancar). Formatos: .json y .cmd.")
 	if Config.AUTO_LINT ~= false or Config.AUTO_MIRROR ~= false then
 		ui:Log(("AutoSense activo: lint cada %ds y espejo cada %ds (solo escribe cuando algo cambia)."):format(
 			Config.AUTO_LINT_SECONDS or 600,

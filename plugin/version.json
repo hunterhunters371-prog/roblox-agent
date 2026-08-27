@@ -1,8 +1,8 @@
 {
-	"version": "3.3.0",
+	"version": "3.3.1",
 	"updated": "2026-08-27",
 	"loader_min": "2.1",
-	"notes": "Sin aprobación humana: los comandos válidos de pending/ y approved/ se AUTO-EJECUTAN al sincronizar (Config.AUTO_EXECUTE). Se aceptan archivos .cmd además de .json (mismo envelope JSON). Ops nuevas de solo lectura: scan_workspace (árbol del place abierto en Studio, con fuente de scripts opcional) y scan_repo (árbol del repo vía git trees + contenido opcional de archivos). Ambas publican en snapshots/ y devuelven resumen en data del result.json. Las ops viven en el módulo nuevo OpsScan.lua.",
+	"notes": "Fix de arranque: require tolerante de OpsScan en Main y Executor (la carrera de caché del CDN podía servir Main nuevo con manifiesto viejo y tumbar la carga: 'Requested module experienced an error while loading'). Filtro estricto de comandos: solo cmd_NNNNNN.json/.cmd exactos (los .state/.result/.reason huérfanos ya no se leen como comandos). Sync inicial automático al cargar el token: la cola pendiente se auto-ejecuta sin tocar nada. Incluye lo de 3.3.0: sin aprobación humana, acepta .cmd además de .json, ops scan_workspace y scan_repo.",
 	"files": [
 		"Config.lua",
 		"Base64.lua",

@@ -4,13 +4,26 @@
 -- v2.0: fusiona OpsExtra (ops nuevas, p. ej. insert_asset) en el registro de Ops.
 -- v3.0: lint_scripts y mirror_place cuentan como solo lectura (sin waypoint).
 -- v3.3: fusiona OpsScan (scan_workspace / scan_repo, solo lectura).
+-- v3.3.1: el require de OpsScan es tolerante a descargas a medias del CDN.
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
 local Ops = require(script.Parent.Ops)
 local OpsExtra = require(script.Parent.OpsExtra)
-local OpsScan = require(script.Parent.OpsScan)
 local Resolver = require(script.Parent.PathResolver)
+
+-- v3.3.1: require tolerante de OpsScan — si el CDN descargó una versión a medias
+-- (manifiesto viejo sin OpsScan.lua), el bridge sigue arrancando sin las ops de
+-- escaneo en lugar de tumbar la carga completa del runtime.
+local OpsScan = nil
+do
+	local okOpsScan, opsScanMod = pcall(function()
+		return require(script.Parent.OpsScan)
+	end)
+	if okOpsScan then
+		OpsScan = opsScanMod
+	end
+end
 
 -- Ops.lua llegó al límite de ~16 KB por archivo de este repo; las ops nuevas
 -- viven en OpsExtra/OpsScan y aquí se fusionan en el mismo registro.
@@ -19,9 +32,11 @@ for opName, handler in pairs(OpsExtra) do
 		Ops[opName] = handler
 	end
 end
-for opName, handler in pairs(OpsScan) do
-	if opName ~= "set_env" then
-		Ops[opName] = handler
+if OpsScan then
+	for opName, handler in pairs(OpsScan) do
+		if opName ~= "set_env" then
+			Ops[opName] = handler
+		end
 	end
 end
 
